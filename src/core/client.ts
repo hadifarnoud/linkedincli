@@ -108,9 +108,9 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
         clearTimeout(timeout);
         lastRequestTime = Date.now();
 
-        // Check for challenge / restricted page
+        // Check for challenge / restricted page (only on non-OK responses)
         const contentType = response.headers.get('content-type') ?? '';
-        if (contentType.includes('text/html')) {
+        if (!response.ok && contentType.includes('text/html')) {
           throw new ChallengeError();
         }
 

@@ -103,7 +103,7 @@ export function registerStatusCommand(program: Command): void {
           return;
         }
 
-        // Validate session
+        // Validate session by calling /me
         const client = createClient({ liAt: config.li_at, jsessionid: config.jsessionid });
         try {
           const me = await client.get<any>('/me');
@@ -114,13 +114,25 @@ export function registerStatusCommand(program: Command): void {
             urn: me?.entityUrn || config.profile_urn,
             session_valid: true,
           }, globalOpts);
-        } catch {
-          output({
-            logged_in: true,
-            profile: config.profile_name || 'Unknown',
-            session_valid: false,
-            message: 'Session cookies expired. Run: linkedin login',
-          }, globalOpts);
+        } catch (err: any) {
+          // Only report session_valid: false for actual auth errors
+          const isAuthError = err?.code === 'AUTH_ERROR' || err?.statusCode === 401;
+          if (isAuthError) {
+            output({
+              logged_in: true,
+              profile: config.profile_name || 'Unknown',
+              session_valid: false,
+              message: 'Session cookies expired. Run: linkedin login',
+            }, globalOpts);
+          } else {
+            // Transient error — session may still be valid
+            output({
+              logged_in: true,
+              profile: config.profile_name || 'Unknown',
+              session_valid: 'unknown',
+              message: `Could not verify session: ${err?.message ?? err}`,
+            }, globalOpts);
+          }
         }
       } catch (error) {
         outputError(error, globalOpts);
