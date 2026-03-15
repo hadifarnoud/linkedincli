@@ -10,9 +10,14 @@ Works as a **CLI** and an **MCP server** (for Claude Code, Cursor, Windsurf, and
 # Install globally
 npm install -g @bcharleson/linkedincli
 
+# This installs the `linkedin` command:
+linkedin --help
+
 # Or run without installing
 npx @bcharleson/linkedincli --help
 ```
+
+> **Note:** The npm package is `@bcharleson/linkedincli` but the CLI command is just **`linkedin`**.
 
 ## Quick Start
 
