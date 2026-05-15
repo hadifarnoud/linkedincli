@@ -170,14 +170,14 @@ export const profilePostsCommand: CommandDefinition = {
   subcommand: 'posts',
   description: 'List recent posts from a profile',
   mcpDescription:
-    'List recent posts authored by a specific profile (their member share feed). Use when asked about somebody else\'s recent activity/posts. IMPORTANT: urn_id is the NUMERIC URN ID (the tail of urn:li:fsd_profile:<id>), NOT the URL slug — to get a URN ID from a public ID, call profile_view first and read miniProfile.entityUrn. Returns: { elements: [{ updateMetadata, content, socialDetail }], paging }.',
+    'List recent posts authored by a specific profile (their member share feed). Use when asked about somebody else\'s recent activity/posts. IMPORTANT: urn_id is the full tail segment of urn:li:fsd_profile:<id> (typically alphanumeric, e.g. "ACoAAB..."), NOT the URL slug and NOT digits-only — to obtain it from a public ID, call profile_view first and read miniProfile.entityUrn. Returns: { elements: [{ updateMetadata, content, socialDetail }], paging }.',
   examples: [
     'linkedin profile posts johndoe',
     'linkedin profile posts johndoe --limit 50',
   ],
 
   inputSchema: z.object({
-    urn_id: z.string().describe('Profile URN ID (numeric)'),
+    urn_id: z.string().describe('Profile URN ID — full tail of urn:li:fsd_profile:<id> (alphanumeric, e.g. "ACoAAB..."), not the URL slug'),
     limit: z.coerce.number().min(1).max(100).default(10).describe('Number of posts'),
     start: z.coerce.number().default(0).describe('Offset for pagination'),
   }),
