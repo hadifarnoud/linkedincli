@@ -238,23 +238,21 @@ export const postsViewCommand: CommandDefinition = {
     const activityUrn = `urn:li:activity:${input.activity_id}`;
     const urnEncoded = encodeURIComponent(activityUrn);
 
-    const [post, comments, reactions] = await Promise.all([
-      client.get(`/feed/updates/${urnEncoded}`),
-      client.get('/feed/comments', {
-        count: input.comments_limit,
-        start: 0,
-        q: 'comments',
-        sortOrder: 'RELEVANCE',
-        updateId: `activity:${input.activity_id}`,
-      }),
-      client.get('/feed/reactions', {
-        count: input.reactions_limit,
-        q: 'reactionType',
-        sortOrder: 'REV_CHRON',
-        start: 0,
-        threadUrn: activityUrn,
-      }),
-    ]);
+    const post = await client.get(`/feed/updates/${urnEncoded}`);
+    const comments = await client.get('/feed/comments', {
+      count: input.comments_limit,
+      start: 0,
+      q: 'comments',
+      sortOrder: 'RELEVANCE',
+      updateId: `activity:${input.activity_id}`,
+    });
+    const reactions = await client.get('/feed/reactions', {
+      count: input.reactions_limit,
+      q: 'reactionType',
+      sortOrder: 'REV_CHRON',
+      start: 0,
+      threadUrn: activityUrn,
+    });
 
     return { post, comments, reactions };
   },
