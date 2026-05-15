@@ -9,6 +9,8 @@ export interface CommandDefinition<TInput extends z.ZodObject<any> = z.ZodObject
   subcommand: string;
   /** Shared help text for CLI and MCP */
   description: string;
+  /** Richer description used by the MCP server registration; falls back to description if unset */
+  mcpDescription?: string;
   /** CLI usage examples */
   examples?: string[];
   /** Zod schema — validates both CLI flags and MCP input */

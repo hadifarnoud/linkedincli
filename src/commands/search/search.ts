@@ -6,6 +6,8 @@ export const searchPeopleCommand: CommandDefinition = {
   group: 'search',
   subcommand: 'people',
   description: 'Search for people on LinkedIn',
+  mcpDescription:
+    'Search LinkedIn members. Inputs: keywords (free text); optional filters network ("F"=1st, "S"=2nd, "O"=3rd+), company/industry/school (numeric IDs), title, first_name/last_name, geo (geoUrn). limit max 49, defaults 10. Use to find people by job title, company, or name. Returns: { data: { searchDashClustersByAll: { elements: [{ items: [{ entityResult: { trackingUrn (profile URN), title, primarySubtitle, navigationUrl }}] }] } } }.',
   examples: [
     'linkedin search people --keywords "software engineer"',
     'linkedin search people --keywords "CTO" --network F --limit 25',
@@ -71,6 +73,8 @@ export const searchCompaniesCommand: CommandDefinition = {
   group: 'search',
   subcommand: 'companies',
   description: 'Search for companies on LinkedIn',
+  mcpDescription:
+    'Search for company pages on LinkedIn by keyword. Inputs: keywords (required), limit (max 49, default 10), start. Returns: { data: { searchDashClustersByAll: { elements: [{ items: [{ entityResult: { trackingUrn (company URN), title, primarySubtitle (industry), secondarySubtitle (headcount/location), navigationUrl }}] }] } } }. Use the URL slug from navigationUrl as company_name for companies_view or feed_company.',
   examples: ['linkedin search companies --keywords "AI startups"'],
 
   inputSchema: z.object({
@@ -103,6 +107,8 @@ export const searchJobsCommand: CommandDefinition = {
   group: 'search',
   subcommand: 'jobs',
   description: 'Search for jobs on LinkedIn',
+  mcpDescription:
+    'Search LinkedIn job postings. Inputs: keywords (required); optional location (free text), experience (1=Intern...6=Exec), job_type ("F"/"C"/"P"/"T"/"I"), remote (boolean), posted_within ("r86400"=24h / "r604800"=week / "r2592000"=month). limit max 49, default 25. Returns: { elements: [{ jobPostingCard: { jobPostingUrn, primaryDescription (company), title, secondaryDescription (location) }}], paging }. Pass the numeric tail of jobPostingUrn to jobs_view.',
   examples: [
     'linkedin search jobs --keywords "software engineer"',
     'linkedin search jobs --keywords "product manager" --location "San Francisco"',
@@ -159,6 +165,8 @@ export const searchPostsCommand: CommandDefinition = {
   group: 'search',
   subcommand: 'posts',
   description: 'Search for posts on LinkedIn',
+  mcpDescription:
+    'Search for public posts/content on LinkedIn matching keywords. Inputs: keywords (required), limit (max 49, default 10), start. Returns: { data: { searchDashClustersByAll: { elements: [{ items: [{ entityResult: { trackingUrn (activity URN), title (author), primarySubtitle, summary, navigationUrl }}] }] } } }. Use the numeric tail of the activity URN with engage_react/engage_comment/engage_reactions/engage_comments-list.',
   examples: ['linkedin search posts --keywords "AI trends 2026"'],
 
   inputSchema: z.object({

@@ -9,6 +9,8 @@ export const engageReactCommand: CommandDefinition = {
   group: 'engage',
   subcommand: 'react',
   description: 'React to a post (like, celebrate, support, love, insightful, funny)',
+  mcpDescription:
+    'Add a reaction (like / celebrate / support / love / insightful / funny) to a post. CRITICAL: post_urn is the NUMERIC activity id ONLY (the digits after "urn:li:activity:"), NOT the full URN and NOT a share URN — the handler prepends "urn:li:activity:" itself. type values: LIKE, PRAISE (celebrate), APPRECIATION (support), EMPATHY (love), INTEREST (insightful), ENTERTAINMENT (funny). Returns the reaction object.',
   examples: [
     'linkedin engage react 7123456789 --type LIKE',
     'linkedin engage react 7123456789 --type PRAISE',
@@ -40,6 +42,8 @@ export const engageReactionsCommand: CommandDefinition = {
   group: 'engage',
   subcommand: 'reactions',
   description: 'Get reactions on a post',
+  mcpDescription:
+    'List who has reacted to a given post and with what reaction. CRITICAL: post_urn is the NUMERIC activity id ONLY (digits after "urn:li:activity:"), NOT the full URN — the handler prepends the prefix. Inputs: post_urn, limit (default 10), start. Returns: { elements: [{ reactionType, reactorLockup: { actor, name } }], paging }.',
   examples: ['linkedin engage reactions 7123456789'],
 
   inputSchema: z.object({
@@ -74,6 +78,8 @@ export const engageCommentCommand: CommandDefinition = {
   group: 'engage',
   subcommand: 'comment',
   description: 'Comment on a post',
+  mcpDescription:
+    'Post a top-level comment on someone\'s post. CRITICAL: post_urn is the NUMERIC activity id ONLY (digits after "urn:li:activity:"), NOT the full URN and NOT a share URN — the handler prepends "activity:" itself. Inputs: post_urn, text (max 1250 chars). Returns the created comment object including its comment URN. Use only when the user explicitly says "comment on this post".',
   examples: [
     'linkedin engage comment 7123456789 --text "Great post!"',
   ],
@@ -106,6 +112,8 @@ export const engageCommentsListCommand: CommandDefinition = {
   group: 'engage',
   subcommand: 'comments-list',
   description: 'List comments on a post',
+  mcpDescription:
+    'List comments on a post. CRITICAL: post_urn is the NUMERIC activity id ONLY (digits after "urn:li:activity:"), NOT the full URN — the handler prepends "activity:" itself. Inputs: post_urn, limit (default 10), start, sort ("RELEVANCE" or "REVERSE_CHRONOLOGICAL"). Returns: { elements: [{ commenter, commentV2: { text }, createdAt, urn }], paging }.',
   examples: ['linkedin engage comments-list 7123456789'],
 
   inputSchema: z.object({
@@ -142,6 +150,8 @@ export const engageShareCommand: CommandDefinition = {
   group: 'engage',
   subcommand: 'share',
   description: 'Share/repost a post with optional commentary',
+  mcpDescription:
+    'Repost someone else\'s share to your feed, optionally with your own commentary on top. IMPORTANT: share_urn is the FULL URN of the original share (e.g., "urn:li:share:7123456789"), NOT an activity URN and NOT a bare numeric id. Inputs: share_urn (full URN), text (optional commentary, max 3000 chars). Returns the new repost share object.',
   examples: [
     'linkedin engage share urn:li:share:12345',
     'linkedin engage share urn:li:share:12345 --text "This is worth reading"',

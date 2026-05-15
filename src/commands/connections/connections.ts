@@ -7,6 +7,8 @@ export const connectionsSendCommand: CommandDefinition = {
   group: 'connections',
   subcommand: 'send',
   description: 'Send a connection request to a profile',
+  mcpDescription:
+    'Send a 1st-degree connection invitation to a profile, optionally with a custom note. IMPORTANT: profile_urn is the URN ID (the long alphanumeric tail like "ACoAABxxxxxxx") — NOT the public ID/URL slug. Get this from profile_view via miniProfile.entityUrn (drop the "urn:li:fs(d)_profile:" prefix). Inputs: profile_urn, optional message (max 300 chars). Use only when user explicitly says "connect with".',
   examples: [
     'linkedin connections send ACoAABxxxxxxx',
     'linkedin connections send ACoAABxxxxxxx --message "Hi, I\'d love to connect!"',
@@ -48,6 +50,8 @@ export const connectionsReceivedCommand: CommandDefinition = {
   group: 'connections',
   subcommand: 'received',
   description: 'List received connection invitations',
+  mcpDescription:
+    'List pending INCOMING connection invitations the authenticated user has received. Use to find pending invites the user can accept/reject. No profile id required. Inputs: limit (default 100), start. Returns: { elements: [{ invitation: { entityUrn, sharedSecret, fromMember: { miniProfile } }, inviterInsights }], paging }. The numeric tail of invitation.entityUrn is the invitation_id for accept/reject.',
   examples: ['linkedin connections received'],
 
   inputSchema: z.object({
@@ -77,6 +81,8 @@ export const connectionsSentCommand: CommandDefinition = {
   group: 'connections',
   subcommand: 'sent',
   description: 'List sent connection invitations',
+  mcpDescription:
+    'List pending OUTGOING connection invitations the authenticated user has sent (and not yet accepted/withdrawn). Use to audit pending invites or find one to withdraw. No profile id required. Inputs: limit (default 100), start. Returns: { elements: [{ invitation: { entityUrn, toMember: { miniProfile }, sentTime } }], paging }.',
   examples: ['linkedin connections sent'],
 
   inputSchema: z.object({
@@ -106,6 +112,8 @@ export const connectionsAcceptCommand: CommandDefinition = {
   group: 'connections',
   subcommand: 'accept',
   description: 'Accept a connection invitation',
+  mcpDescription:
+    'Accept a pending incoming connection invitation. BOTH inputs are required and come from connections_received: invitation_id is the numeric tail of invitation.entityUrn; secret is the invitation.sharedSecret value. Do NOT guess these — always call connections_received first. Returns the accept action result.',
   examples: ['linkedin connections accept 12345 --secret abc123'],
 
   inputSchema: z.object({
@@ -137,6 +145,8 @@ export const connectionsRejectCommand: CommandDefinition = {
   group: 'connections',
   subcommand: 'reject',
   description: 'Reject/ignore a connection invitation',
+  mcpDescription:
+    'Reject/ignore a pending incoming connection invitation. BOTH inputs come from connections_received: invitation_id is the numeric tail of invitation.entityUrn; secret is invitation.sharedSecret. Always call connections_received first to obtain these. Returns the ignore action result.',
   examples: ['linkedin connections reject 12345 --secret abc123'],
 
   inputSchema: z.object({
@@ -168,6 +178,8 @@ export const connectionsWithdrawCommand: CommandDefinition = {
   group: 'connections',
   subcommand: 'withdraw',
   description: 'Withdraw a pending sent connection request',
+  mcpDescription:
+    'Withdraw (cancel) a pending OUTGOING connection request you previously sent. Input: invitation_id is the numeric tail of invitation.entityUrn from connections_sent. Use only when the user explicitly says "withdraw" / "cancel my invite". Returns the delete result.',
   examples: ['linkedin connections withdraw 12345'],
 
   inputSchema: z.object({
@@ -188,6 +200,8 @@ export const connectionsRemoveCommand: CommandDefinition = {
   group: 'connections',
   subcommand: 'remove',
   description: 'Remove an existing connection',
+  mcpDescription:
+    'Remove (unfriend) an existing 1st-degree connection. DESTRUCTIVE and not reversible without sending a new invite. Input: public_id is the URL slug (e.g., "johndoe"), NOT a URN ID. Use only when the user explicitly says "disconnect" / "remove connection". Functionally equivalent to profile_disconnect.',
   examples: ['linkedin connections remove johndoe'],
 
   inputSchema: z.object({

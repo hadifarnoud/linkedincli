@@ -6,6 +6,8 @@ export const analyticsProfileViewsCommand: CommandDefinition = {
   group: 'analytics',
   subcommand: 'profile-views',
   description: 'Get "who viewed my profile" summary and count',
+  mcpDescription:
+    'Fetch the authenticated user\'s "who viewed my profile" analytics: total view count over recent windows plus a sample of recent viewers. No inputs. Use when the user asks "who viewed my profile" or "how many profile views did I get". Returns: { elements: [{ cardType, viewerCount, viewers: [{ miniProfile }] }] }. Some viewer details are hidden unless the user has LinkedIn Premium.',
   examples: ['linkedin analytics profile-views'],
 
   inputSchema: z.object({}),
