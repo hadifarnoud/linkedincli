@@ -210,6 +210,54 @@ export const postsReactionsCommand: CommandDefinition = {
   },
 };
 
+export const postsViewCommand: CommandDefinition = {
+  name: 'posts_view',
+  group: 'posts',
+  subcommand: 'view',
+  description: 'View a post with its content, comments, and reactions in a single call',
+  examples: [
+    'linkedin posts view 7123456789',
+    'linkedin posts view 7123456789 --comments-limit 25 --reactions-limit 25',
+  ],
+
+  inputSchema: z.object({
+    activity_id: z.string().describe('Activity ID (numeric digits after urn:li:activity:)'),
+    comments_limit: z.coerce.number().min(1).max(100).default(10).describe('Number of comments to fetch'),
+    reactions_limit: z.coerce.number().min(1).max(100).default(10).describe('Number of reactions to fetch'),
+  }),
+
+  cliMappings: {
+    args: [{ field: 'activity_id', name: 'activity-id', required: true }],
+    options: [
+      { field: 'comments_limit', flags: '--comments-limit <number>', description: 'Number of comments to fetch (default: 10)' },
+      { field: 'reactions_limit', flags: '--reactions-limit <number>', description: 'Number of reactions to fetch (default: 10)' },
+    ],
+  },
+
+  handler: async (input, client) => {
+    const activityUrn = `urn:li:activity:${input.activity_id}`;
+    const urnEncoded = encodeURIComponent(activityUrn);
+
+    const post = await client.get(`/feed/updates/${urnEncoded}`);
+    const comments = await client.get('/feed/comments', {
+      count: input.comments_limit,
+      start: 0,
+      q: 'comments',
+      sortOrder: 'RELEVANCE',
+      updateId: `activity:${input.activity_id}`,
+    });
+    const reactions = await client.get('/feed/reactions', {
+      count: input.reactions_limit,
+      q: 'reactionType',
+      sortOrder: 'REV_CHRON',
+      start: 0,
+      threadUrn: activityUrn,
+    });
+
+    return { post, comments, reactions };
+  },
+};
+
 export const postsDeleteCommand: CommandDefinition = {
   name: 'posts_delete',
   group: 'posts',
@@ -297,5 +345,6 @@ export const postsCommands = [
   postsListCommand,
   postsCommentsCommand,
   postsReactionsCommand,
+  postsViewCommand,
   postsDeleteCommand,
 ];
