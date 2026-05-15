@@ -90,7 +90,7 @@ linkedin posts comments                                    # Your comments on ot
 linkedin posts reactions                                   # Your reactions on others' posts
 ```
 
-`posts list`, `posts comments`, and `posts reactions` auto-resolve your profile from `/me` — no profile ID needed. Each `posts list` item includes the share URN you can pass to `engage comments-list` and `engage reactions` to view engagement on a specific post.
+`posts list`, `posts comments`, and `posts reactions` auto-resolve your profile from `/me` — no profile ID needed. To inspect a single post's engagement, take the numeric activity ID from a `posts list` item (the digits after `urn:li:activity:`) and pass it to `engage comments-list <activity-id>` and `engage reactions <activity-id>`.
 
 ### Feed (3 commands)
 

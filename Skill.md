@@ -15,11 +15,12 @@ Cookies (`li_at` + `JSESSIONID`) must already be configured — via `linkedin lo
 
 To view a user's own posts and the engagement on them, use this workflow:
 
-1. `linkedin posts list` — lists the current user's posts and reposts. Auto-resolves their profile via `/me`, so no profile ID is needed. Each item includes the share URN, post body, and media.
-2. `linkedin engage comments-list <post-urn>` — comments on a specific post.
-3. `linkedin engage reactions <post-urn>` — reactions on a specific post.
+1. `linkedin posts list` — lists the current user's posts and reposts. Auto-resolves their profile via `/me`, so no profile ID is needed. Each item includes the post body, media, and identifiers.
+2. From an item, extract the numeric **activity ID** (the digits after `urn:li:activity:` in the item's activity URN).
+3. `linkedin engage comments-list <activity-id>` — comments on that post.
+4. `linkedin engage reactions <activity-id>` — reactions on that post.
 
-There is no single "view post" command that bundles content + comments + reactions; do the three calls.
+The engage handlers prepend `urn:li:activity:` themselves, so pass only the numeric ID — not a full share or activity URN, or the request URL will be malformed. There is no single "view post" command that bundles content + comments + reactions; do the calls separately.
 
 For someone else's posts, use `linkedin profile posts <urn-id>` (numeric URN) or `linkedin feed user <profile-id>` (URL slug).
 
@@ -52,7 +53,10 @@ Both auto-resolve the current user.
 
 - All CLI flags are kebab-case, JSON output fields are snake_case.
 - Add `--pretty` for indented JSON, `--fields a,b,c` to subset, `--quiet` to suppress output.
-- Path-style identifiers: `<post-urn>` looks like `urn:li:activity:7123...` or `urn:li:share:7123...`; `<share-urn>` is `urn:li:share:...`; profile IDs come in two flavors — the URL slug (e.g. `johndoe`) and the numeric/encoded URN ID.
+- Identifier shapes:
+  - `engage react`, `engage comment`, `engage comments-list`, `engage reactions` take a **numeric activity ID** (e.g. `7123456789`) — the digits after `urn:li:activity:`. The handlers prepend the prefix internally.
+  - `posts edit`, `posts delete`, `engage share` take a full `<share-urn>` like `urn:li:share:7123456789`.
+  - Profile IDs come in two flavors — the URL slug (e.g. `johndoe`) and the numeric/encoded URN ID.
 - Rate-limited: the client enforces a minimum 2s gap between requests and retries 429s. Don't loop tight.
 
 ## When invoked as MCP tools
