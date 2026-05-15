@@ -24,8 +24,14 @@ export interface CommandDefinition<TInput extends z.ZodObject<any> = z.ZodObject
   };
   /** Where each field goes in the HTTP request */
   fieldMappings?: Record<string, 'path' | 'query' | 'body'>;
-  /** Whether this endpoint returns paginated results */
-  paginated?: boolean;
+  /**
+   * Marks this command as paginated and enables the global --all flag
+   * (and the `all` MCP input) to drive auto-pagination.
+   *  - elementsPath: dot-path into the handler's response that holds the
+   *    items array, e.g. "elements" or "data.elements".
+   *  - maxPages: safety cap on how many pages to fetch (default 10).
+   */
+  paginated?: { elementsPath: string; maxPages?: number };
   /** Handler function — called for both CLI and MCP */
   handler: (input: any, client: LinkedInClient) => Promise<unknown>;
   /** Optional summarizer — flattens raw Voyager response to a stable shape when --summary is on */
@@ -51,6 +57,8 @@ export interface GlobalOptions {
   quiet?: boolean;
   fields?: string;
   summary?: boolean;
+  all?: boolean;
+  maxPages?: number;
 }
 
 export interface LinkedInAuth {

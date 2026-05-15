@@ -174,7 +174,9 @@ export const profilePostsCommand: CommandDefinition = {
   examples: [
     'linkedin profile posts johndoe',
     'linkedin profile posts johndoe --limit 50',
+    'linkedin profile posts johndoe --all',
   ],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     urn_id: z.string().describe('Profile URN ID — full tail of urn:li:fsd_profile:<id> (alphanumeric, e.g. "ACoAAB..."), not the URL slug'),

@@ -3,6 +3,7 @@ import type { CommandDefinition, GlobalOptions, LinkedInClient } from '../core/t
 import { resolveAuth } from '../core/auth.js';
 import { createClient } from '../core/client.js';
 import { applySummary, output, outputError } from '../core/output.js';
+import { executePaginated } from '../core/paginate.js';
 import { registerLoginCommand, registerLogoutCommand, registerStatusCommand } from './auth/login.js';
 import { registerMcpCommand } from './mcp/index.js';
 
@@ -142,8 +143,10 @@ function registerCommand(parent: Command, cmdDef: CommandDefinition): void {
         throw new Error(`Invalid input: ${msg}`);
       }
 
-      // Execute handler
-      const result = await cmdDef.handler(parsed.data, client);
+      const result =
+        globalOpts.all && cmdDef.paginated
+          ? await executePaginated(cmdDef, parsed.data, client, globalOpts.maxPages)
+          : await cmdDef.handler(parsed.data, client);
       const finalResult = applySummary(result, cmdDef, globalOpts);
       output(finalResult, globalOpts);
     } catch (error) {

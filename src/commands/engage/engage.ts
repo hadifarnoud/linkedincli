@@ -44,7 +44,8 @@ export const engageReactionsCommand: CommandDefinition = {
   description: 'Get reactions on a post',
   mcpDescription:
     'List who has reacted to a given post and with what reaction. CRITICAL: post_urn is the NUMERIC activity id ONLY (digits after "urn:li:activity:"), NOT the full URN — the handler prepends the prefix. Inputs: post_urn, limit (default 10), start. Returns: { elements: [{ reactionType, reactorLockup: { actor, name } }], paging }.',
-  examples: ['linkedin engage reactions 7123456789'],
+  examples: ['linkedin engage reactions 7123456789', 'linkedin engage reactions 7123456789 --all'],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     post_urn: z.string().describe('Post activity URN ID (numeric part)'),
@@ -114,7 +115,8 @@ export const engageCommentsListCommand: CommandDefinition = {
   description: 'List comments on a post',
   mcpDescription:
     'List comments on a post. CRITICAL: post_urn is the NUMERIC activity id ONLY (digits after "urn:li:activity:"), NOT the full URN — the handler prepends "activity:" itself. Inputs: post_urn, limit (default 10), start, sort ("RELEVANCE" or "REVERSE_CHRONOLOGICAL"). Returns: { elements: [{ commenter, commentV2: { text }, createdAt, urn }], paging }.',
-  examples: ['linkedin engage comments-list 7123456789'],
+  examples: ['linkedin engage comments-list 7123456789', 'linkedin engage comments-list 7123456789 --all'],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     post_urn: z.string().describe('Post activity URN ID (numeric part)'),

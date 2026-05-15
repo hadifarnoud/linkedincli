@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -19,7 +19,15 @@ program
   .option('--pretty', 'Shorthand for --output pretty')
   .option('--quiet', 'Suppress output, exit codes only')
   .option('--fields <fields>', 'Comma-separated list of fields to include in output')
-  .option('--summary', 'Flatten output to a stable, agent-friendly per-command shape (when available)');
+  .option('--summary', 'Flatten output to a stable, agent-friendly per-command shape (when available)')
+  .option('--all', 'Auto-paginate listing commands until exhausted or capped')
+  .option('--max-pages <n>', 'Override the auto-pagination page cap (default 10)', (v) => {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 1) {
+      throw new InvalidArgumentError(`--max-pages must be a positive integer, got: ${v}`);
+    }
+    return n;
+  });
 
 registerAllCommands(program);
 

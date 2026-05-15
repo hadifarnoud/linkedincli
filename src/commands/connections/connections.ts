@@ -52,7 +52,8 @@ export const connectionsReceivedCommand: CommandDefinition = {
   description: 'List received connection invitations',
   mcpDescription:
     'List pending INCOMING connection invitations the authenticated user has received. Use to find pending invites the user can accept/reject. No profile id required. Inputs: limit (default 100), start. Returns: { elements: [{ invitation: { entityUrn, sharedSecret, fromMember: { miniProfile } }, inviterInsights }], paging }. The numeric tail of invitation.entityUrn is the invitation_id for accept/reject.',
-  examples: ['linkedin connections received'],
+  examples: ['linkedin connections received', 'linkedin connections received --all'],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     limit: z.coerce.number().min(1).max(100).default(100).describe('Number of invitations'),
@@ -83,7 +84,8 @@ export const connectionsSentCommand: CommandDefinition = {
   description: 'List sent connection invitations',
   mcpDescription:
     'List pending OUTGOING connection invitations the authenticated user has sent (and not yet accepted/withdrawn). Use to audit pending invites or find one to withdraw. No profile id required. Inputs: limit (default 100), start. Returns: { elements: [{ invitation: { entityUrn, toMember: { miniProfile }, sentTime } }], paging }.',
-  examples: ['linkedin connections sent'],
+  examples: ['linkedin connections sent', 'linkedin connections sent --all'],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     limit: z.coerce.number().min(1).max(100).default(100).describe('Number of invitations'),

@@ -1,8 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
 import { allCommands } from '../commands/index.js';
 import { resolveAuth } from '../core/auth.js';
 import { createClient } from '../core/client.js';
+import { executePaginated } from '../core/paginate.js';
 
 export async function startMcpServer(): Promise<void> {
   const auth = await resolveAuth();
@@ -15,7 +17,19 @@ export async function startMcpServer(): Promise<void> {
 
   // Register every CommandDefinition as an MCP tool
   for (const cmdDef of allCommands) {
-    const shape = cmdDef.inputSchema.shape;
+    const shape: Record<string, z.ZodTypeAny> = { ...cmdDef.inputSchema.shape };
+    if (cmdDef.paginated) {
+      shape.all = z
+        .boolean()
+        .optional()
+        .describe('Auto-paginate until exhausted or capped (server-side loop).');
+      shape.max_pages = z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe('Override the auto-pagination page cap (default 10).');
+    }
 
     server.registerTool(
       cmdDef.name,
@@ -25,7 +39,11 @@ export async function startMcpServer(): Promise<void> {
       },
       async (args: Record<string, unknown>) => {
         try {
-          const result = await cmdDef.handler(args as any, client);
+          const { all, max_pages, ...handlerArgs } = args as Record<string, any>;
+          const result =
+            all && cmdDef.paginated
+              ? await executePaginated(cmdDef, handlerArgs, client, max_pages)
+              : await cmdDef.handler(handlerArgs, client);
           let payload: unknown = result;
           if (cmdDef.summarize) {
             try {
