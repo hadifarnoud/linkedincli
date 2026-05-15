@@ -48,6 +48,26 @@ function resolve(idx: Map<string, Json>, ref: unknown): Json | undefined {
   return idx.get(ref);
 }
 
+/**
+ * Voyager list payloads put items in `elements` in one of three shapes:
+ * a direct object, a `{value: "urn:..."}` wrapper, or a bare URN string.
+ * Resolve any of those to the underlying record (looking up `included`
+ * for the URN cases) so summarizers don't silently drop ref-style items.
+ */
+function resolveElement(idx: Map<string, Json>, el: unknown): Json | undefined {
+  if (typeof el === 'string') {
+    return resolve(idx, el);
+  }
+  if (!isObject(el)) return undefined;
+  if (typeof el.value === 'string') {
+    return resolve(idx, el.value) ?? el;
+  }
+  if (isObject(el.value)) {
+    return el.value as Json;
+  }
+  return el;
+}
+
 function pickText(entry: Json | undefined): string | undefined {
   if (!entry) return undefined;
   const text = entry.text;
@@ -203,14 +223,8 @@ export function summarizePostsList(raw: unknown): unknown {
 
   const items: PostSummary[] = [];
   for (const el of elements) {
-    if (!isObject(el)) continue;
-    let target: Json = el;
-    if (isObject(el.value)) {
-      target = el.value as Json;
-    } else if (typeof el.value === 'string') {
-      const resolved = resolve(idx, el.value);
-      if (resolved) target = resolved;
-    }
+    const target = resolveElement(idx, el);
+    if (!target) continue;
     items.push(summarizePostElement(idx, target));
   }
 
@@ -263,8 +277,9 @@ export function summarizeCommentsList(raw: unknown): unknown {
   const elements = asArray(raw.elements);
   const items: CommentSummary[] = [];
   for (const el of elements) {
-    if (!isObject(el)) continue;
-    items.push(summarizeCommentElement(idx, el));
+    const target = resolveElement(idx, el);
+    if (!target) continue;
+    items.push(summarizeCommentElement(idx, target));
   }
   const out: Json = { items };
   if (raw.paging !== undefined) out.paging = raw.paging;
@@ -297,8 +312,9 @@ export function summarizeReactionsList(raw: unknown): unknown {
   const elements = asArray(raw.elements);
   const items: ReactionSummary[] = [];
   for (const el of elements) {
-    if (!isObject(el)) continue;
-    items.push(summarizeReactionElement(idx, el));
+    const target = resolveElement(idx, el);
+    if (!target) continue;
+    items.push(summarizeReactionElement(idx, target));
   }
   const out: Json = { items };
   if (raw.paging !== undefined) out.paging = raw.paging;
