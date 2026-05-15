@@ -7,6 +7,8 @@ export const messagingConversationsCommand: CommandDefinition = {
   group: 'messaging',
   subcommand: 'conversations',
   description: 'List your messaging conversations',
+  mcpDescription:
+    'List the authenticated user\'s messaging inbox (all conversations). Use to find a conversation_id before fetching messages or sending a follow-up. No inputs. Returns: { elements: [{ entityUrn (conversation URN), participants: [{ miniProfile }], events (latest message), unreadCount, lastActivityAt }], paging }. The numeric tail of entityUrn is the conversation_id used by other messaging tools.',
   examples: ['linkedin messaging conversations'],
 
   inputSchema: z.object({}),
@@ -25,6 +27,8 @@ export const messagingConversationWithCommand: CommandDefinition = {
   group: 'messaging',
   subcommand: 'conversation-with',
   description: 'Get conversation with a specific person by their URN ID',
+  mcpDescription:
+    'Look up the existing 1:1 conversation with a specific person. Input: profile_urn is the recipient\'s URN ID (alphanumeric tail like "ACoAABxxxxxxx") — NOT a public ID/URL slug. Use when you have someone\'s URN and want to find or open their thread. Returns: { elements: [...] } — empty if no conversation exists yet (use messaging_send-new to start one).',
   examples: ['linkedin messaging conversation-with ACoAABxxxxxxx'],
 
   inputSchema: z.object({
@@ -49,6 +53,8 @@ export const messagingMessagesCommand: CommandDefinition = {
   group: 'messaging',
   subcommand: 'messages',
   description: 'Get messages from a specific conversation',
+  mcpDescription:
+    'Fetch the messages inside one conversation. Input: conversation_id is the numeric tail of conversation.entityUrn from messaging_conversations (NOT a profile URN). Optional before: epoch ms — fetch older messages before this time (for pagination). Returns: { elements: [{ from, eventContent.attributedBody.text, createdAt }], paging }.',
   examples: ['linkedin messaging messages CONVERSATION_URN_ID'],
 
   inputSchema: z.object({
@@ -77,6 +83,8 @@ export const messagingSendCommand: CommandDefinition = {
   group: 'messaging',
   subcommand: 'send',
   description: 'Send a message in an existing conversation',
+  mcpDescription:
+    'Send a reply into an EXISTING conversation thread. Input: conversation_id is the numeric tail of an existing conversation.entityUrn (from messaging_conversations); to start a brand-new conversation use messaging_send-new instead. Inputs: conversation_id, text. Use only when the user explicitly says "reply" / "message <person> back". Returns the created message event.',
   examples: ['linkedin messaging send CONVERSATION_URN_ID --text "Hello!"'],
 
   inputSchema: z.object({
@@ -119,6 +127,8 @@ export const messagingSendNewCommand: CommandDefinition = {
   group: 'messaging',
   subcommand: 'send-new',
   description: 'Send a message to one or more people (creates a new conversation)',
+  mcpDescription:
+    'Start a NEW conversation with one or more recipients (1:1 or group). Inputs: recipients is a comma-separated string of profile URN IDs (alphanumeric like "ACoAABxxxxxxx", NOT public IDs and NOT a JSON array); text is the message body. Use only when no existing conversation thread is appropriate — to reply, use messaging_send. Returns the created conversation/event.',
   examples: [
     'linkedin messaging send-new --recipients ACoAABxxxxxxx --text "Hello!"',
     'linkedin messaging send-new --recipients ACoAABxxxxxxx,ACoAAByyyyyyy --text "Group message"',
@@ -167,6 +177,8 @@ export const messagingMarkReadCommand: CommandDefinition = {
   group: 'messaging',
   subcommand: 'mark-read',
   description: 'Mark a conversation as read',
+  mcpDescription:
+    'Mark a conversation as read (clears the unread badge). Input: conversation_id is the numeric tail of conversation.entityUrn from messaging_conversations. Use when the user says "mark <thread> as read" or after the agent has summarized unread messages. Returns the patch result.',
   examples: ['linkedin messaging mark-read CONVERSATION_URN_ID'],
 
   inputSchema: z.object({

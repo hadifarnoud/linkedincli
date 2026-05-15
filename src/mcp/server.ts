@@ -20,7 +20,7 @@ export async function startMcpServer(): Promise<void> {
     server.registerTool(
       cmdDef.name,
       {
-        description: cmdDef.description,
+        description: cmdDef.mcpDescription ?? cmdDef.description,
         inputSchema: shape,
       },
       async (args: Record<string, unknown>) => {

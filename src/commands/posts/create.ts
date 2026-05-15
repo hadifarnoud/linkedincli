@@ -10,6 +10,8 @@ export const postsCreateCommand: CommandDefinition = {
   group: 'posts',
   subcommand: 'create',
   description: 'Create a new LinkedIn post (text, image, or article)',
+  mcpDescription:
+    'Publish a new post on the authenticated user\'s feed (text, optionally with a single image). Use only when the user explicitly asks to post, publish, or share content. Inputs: text (required, max 3000 chars), visibility ("anyone" | "connections"), optional image (local file path — uploaded to LinkedIn first), comments_scope ("all" | "connections" | "none"). Returns: { urn: "urn:li:share:..." } — keep this share_urn for later edit/delete.',
   examples: [
     'linkedin posts create --text "Hello LinkedIn!"',
     'linkedin posts create --text "Check this out" --image ./photo.jpg',
@@ -74,6 +76,8 @@ export const postsEditCommand: CommandDefinition = {
   group: 'posts',
   subcommand: 'edit',
   description: 'Edit an existing LinkedIn post',
+  mcpDescription:
+    'Edit the text of an existing post you authored. IMPORTANT: share_urn must be the FULL URN (e.g., "urn:li:share:7123456789"), NOT just the numeric tail and NOT an activity URN. To get share URNs, use posts_list. Inputs: share_urn (full URN), text (new text, max 3000 chars). Returns the patched share object.',
   examples: ['linkedin posts edit urn:li:share:12345 --text "Updated text"'],
 
   inputSchema: z.object({
@@ -129,6 +133,8 @@ export const postsListCommand: CommandDefinition = {
   group: 'posts',
   subcommand: 'list',
   description: 'List your own recent posts (auto-resolves your profile)',
+  mcpDescription:
+    'List the authenticated user\'s OWN recent posts (member share feed). Auto-resolves the current user via /me — NO profile id required. Use whenever the user asks about "my posts", "what did I post", etc. Inputs: limit (default 10), start (offset). Returns: { elements: [{ updateMetadata: { shareUrn, urn }, content, socialDetail }], paging }.',
   examples: [
     'linkedin posts list',
     'linkedin posts list --limit 50',
@@ -160,6 +166,8 @@ export const postsCommentsCommand: CommandDefinition = {
   group: 'posts',
   subcommand: 'comments',
   description: 'List your recent comments on other people\'s posts',
+  mcpDescription:
+    'List comments the authenticated user has recently made on OTHER PEOPLE\'S posts. Auto-resolves the current user via /me — no profile id required. Use for "my recent comments" or to audit engagement history. Inputs: limit (default 10), start (offset). Returns: { elements: [{ updateMetadata, value (comment body), socialDetail }], paging }.',
   examples: [
     'linkedin posts comments',
     'linkedin posts comments --limit 50',
@@ -191,6 +199,8 @@ export const postsReactionsCommand: CommandDefinition = {
   group: 'posts',
   subcommand: 'reactions',
   description: 'List your recent reactions (likes) on other people\'s posts',
+  mcpDescription:
+    'List reactions (likes/celebrates/etc.) the authenticated user has recently given to OTHER PEOPLE\'S posts. Auto-resolves the current user via /me — no profile id required. Use for "what have I liked recently". Inputs: limit (default 10), start (offset). Returns: { elements: [{ updateMetadata, content }], paging }. Note: this is your outgoing reactions; for reactions ON a post, use engage_reactions.',
   examples: [
     'linkedin posts reactions',
     'linkedin posts reactions --limit 50',
@@ -270,6 +280,8 @@ export const postsDeleteCommand: CommandDefinition = {
   group: 'posts',
   subcommand: 'delete',
   description: 'Delete a LinkedIn post by share URN',
+  mcpDescription:
+    'PERMANENTLY delete a post you authored. DESTRUCTIVE and irreversible. IMPORTANT: share_urn must be the FULL URN (e.g., "urn:li:share:7123456789"), NOT a bare numeric ID and NOT an activity URN. Get share URNs from posts_list. Use only when the user explicitly says "delete" / "remove my post". Returns the delete action result.',
   examples: ['linkedin posts delete urn:li:share:12345'],
 
   inputSchema: z.object({
