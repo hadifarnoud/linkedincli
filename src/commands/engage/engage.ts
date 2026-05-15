@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { CommandDefinition } from '../../core/types.js';
+import { summarizeCommentsList, summarizeReactionsList } from '../../core/summarize.js';
 
 const reactionTypes = z.enum(['LIKE', 'PRAISE', 'APPRECIATION', 'EMPATHY', 'INTEREST', 'ENTERTAINMENT']);
 
@@ -64,6 +65,8 @@ export const engageReactionsCommand: CommandDefinition = {
       threadUrn: `urn:li:activity:${input.post_urn}`,
     });
   },
+
+  summarize: summarizeReactionsList,
 };
 
 export const engageCommentCommand: CommandDefinition = {
@@ -130,6 +133,8 @@ export const engageCommentsListCommand: CommandDefinition = {
       updateId: `activity:${input.post_urn}`,
     });
   },
+
+  summarize: summarizeCommentsList,
 };
 
 export const engageShareCommand: CommandDefinition = {

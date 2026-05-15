@@ -1,4 +1,4 @@
-import type { GlobalOptions } from './types.js';
+import type { CommandDefinition, GlobalOptions } from './types.js';
 import { formatError } from './errors.js';
 
 function pickFields(obj: Record<string, unknown>, fields: string[]): Record<string, unknown> {
@@ -9,6 +9,19 @@ function pickFields(obj: Record<string, unknown>, fields: string[]): Record<stri
     }
   }
   return result;
+}
+
+export function applySummary(
+  data: unknown,
+  cmdDef: Pick<CommandDefinition, 'summarize'>,
+  options: GlobalOptions = {},
+): unknown {
+  if (!options.summary || !cmdDef.summarize) return data;
+  try {
+    return cmdDef.summarize(data);
+  } catch {
+    return data;
+  }
 }
 
 export function output(data: unknown, options: GlobalOptions = {}): void {
