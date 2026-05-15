@@ -103,6 +103,46 @@ export const postsEditCommand: CommandDefinition = {
   },
 };
 
+export const postsListCommand: CommandDefinition = {
+  name: 'posts_list',
+  group: 'posts',
+  subcommand: 'list',
+  description: 'List your own recent posts (auto-resolves your profile)',
+  examples: [
+    'linkedin posts list',
+    'linkedin posts list --limit 50',
+  ],
+
+  inputSchema: z.object({
+    limit: z.coerce.number().min(1).max(100).default(10).describe('Number of posts'),
+    start: z.coerce.number().default(0).describe('Pagination offset'),
+  }),
+
+  cliMappings: {
+    options: [
+      { field: 'limit', flags: '-l, --limit <number>', description: 'Number of posts' },
+      { field: 'start', flags: '--start <number>', description: 'Pagination offset' },
+    ],
+  },
+
+  handler: async (input, client) => {
+    const me = await client.get<any>('/me');
+    const entityUrn: string = me?.entityUrn ?? me?.miniProfile?.entityUrn ?? '';
+    const urnId = entityUrn.split(':').pop();
+    if (!urnId) {
+      throw new Error('Could not resolve your profile URN from /me');
+    }
+    return client.get('/identity/profileUpdatesV2', {
+      count: input.limit,
+      start: input.start,
+      q: 'memberShareFeed',
+      moduleKey: 'member-shares:phone',
+      includeLongTermHistory: true,
+      profileUrn: `urn:li:fsd_profile:${urnId}`,
+    });
+  },
+};
+
 export const postsDeleteCommand: CommandDefinition = {
   name: 'posts_delete',
   group: 'posts',
@@ -187,5 +227,6 @@ function getMimeType(filename: string): string {
 export const postsCommands = [
   postsCreateCommand,
   postsEditCommand,
+  postsListCommand,
   postsDeleteCommand,
 ];
