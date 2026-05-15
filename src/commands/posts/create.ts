@@ -138,7 +138,9 @@ export const postsListCommand: CommandDefinition = {
   examples: [
     'linkedin posts list',
     'linkedin posts list --limit 50',
+    'linkedin posts list --all',
   ],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: myActivityInputSchema,
 
@@ -171,7 +173,9 @@ export const postsCommentsCommand: CommandDefinition = {
   examples: [
     'linkedin posts comments',
     'linkedin posts comments --limit 50',
+    'linkedin posts comments --all',
   ],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: myActivityInputSchema,
 
@@ -204,7 +208,9 @@ export const postsReactionsCommand: CommandDefinition = {
   examples: [
     'linkedin posts reactions',
     'linkedin posts reactions --limit 50',
+    'linkedin posts reactions --all',
   ],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: myActivityInputSchema,
 

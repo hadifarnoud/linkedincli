@@ -12,7 +12,9 @@ export const searchPeopleCommand: CommandDefinition = {
     'linkedin search people --keywords "software engineer"',
     'linkedin search people --keywords "CTO" --network F --limit 25',
     'linkedin search people --keywords "recruiter" --company 1035',
+    'linkedin search people --keywords "engineer" --all',
   ],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     keywords: z.string().optional().describe('Search keywords'),
@@ -75,7 +77,8 @@ export const searchCompaniesCommand: CommandDefinition = {
   description: 'Search for companies on LinkedIn',
   mcpDescription:
     'Search for company pages on LinkedIn by keyword. Inputs: keywords (required), limit (max 49, default 10), start. Returns: { data: { searchDashClustersByAll: { elements: [{ items: [{ entityResult: { trackingUrn (company URN), title, primarySubtitle (industry), secondarySubtitle (headcount/location), navigationUrl }}] }] } } }. Use the URL slug from navigationUrl as company_name for companies_view or feed_company.',
-  examples: ['linkedin search companies --keywords "AI startups"'],
+  examples: ['linkedin search companies --keywords "AI startups"', 'linkedin search companies --keywords "AI startups" --all'],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     keywords: z.string().describe('Search keywords'),
@@ -113,7 +116,9 @@ export const searchJobsCommand: CommandDefinition = {
     'linkedin search jobs --keywords "software engineer"',
     'linkedin search jobs --keywords "product manager" --location "San Francisco"',
     'linkedin search jobs --keywords "data scientist" --remote --experience 4',
+    'linkedin search jobs --keywords "engineer" --all',
   ],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     keywords: z.string().describe('Job search keywords'),
@@ -167,7 +172,8 @@ export const searchPostsCommand: CommandDefinition = {
   description: 'Search for posts on LinkedIn',
   mcpDescription:
     'Search for public posts/content on LinkedIn matching keywords. Inputs: keywords (required), limit (max 49, default 10), start. Returns: { data: { searchDashClustersByAll: { elements: [{ items: [{ entityResult: { trackingUrn (activity URN), title (author), primarySubtitle, summary, navigationUrl }}] }] } } }. Use the numeric tail of the activity URN with engage_react/engage_comment/engage_reactions/engage_comments-list.',
-  examples: ['linkedin search posts --keywords "AI trends 2026"'],
+  examples: ['linkedin search posts --keywords "AI trends 2026"', 'linkedin search posts --keywords "AI trends 2026" --all'],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     keywords: z.string().describe('Search keywords'),

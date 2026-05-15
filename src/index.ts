@@ -19,7 +19,9 @@ program
   .option('--pretty', 'Shorthand for --output pretty')
   .option('--quiet', 'Suppress output, exit codes only')
   .option('--fields <fields>', 'Comma-separated list of fields to include in output')
-  .option('--summary', 'Flatten output to a stable, agent-friendly per-command shape (when available)');
+  .option('--summary', 'Flatten output to a stable, agent-friendly per-command shape (when available)')
+  .option('--all', 'Auto-paginate listing commands until exhausted or capped')
+  .option('--max-pages <n>', 'Override the auto-pagination page cap (default 10)', (v) => Number(v));
 
 registerAllCommands(program);
 

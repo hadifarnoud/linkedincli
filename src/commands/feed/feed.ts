@@ -12,7 +12,9 @@ export const feedViewCommand: CommandDefinition = {
   examples: [
     'linkedin feed view',
     'linkedin feed view --limit 20',
+    'linkedin feed view --all',
   ],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     limit: z.coerce.number().min(1).max(100).default(10).describe('Number of feed items'),
@@ -44,7 +46,8 @@ export const feedUserCommand: CommandDefinition = {
   description: 'View feed/activity for a specific user',
   mcpDescription:
     'Fetch the share-feed updates from one specific user (their posts as they appear in a feed view). Input: profile_id accepts EITHER a public ID (URL slug like "johndoe") OR a numeric URN ID. Use when "show me johndoe\'s recent posts" but you want a feed-style payload; for a profile-page payload use profile_posts. Inputs: profile_id, limit (default 10), start. Returns: { elements: [...], paging }.',
-  examples: ['linkedin feed user johndoe --limit 20'],
+  examples: ['linkedin feed user johndoe --limit 20', 'linkedin feed user johndoe --all'],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     profile_id: z.string().describe('Public profile ID or URN ID'),
@@ -80,7 +83,8 @@ export const feedCompanyCommand: CommandDefinition = {
   description: 'View feed/updates for a company page',
   mcpDescription:
     'Fetch the share-feed updates from a company\'s LinkedIn page. Input: company_name is the universal name / URL slug (e.g., "google", "microsoft" — the path after /company/), NOT a numeric company ID. Use when "what is <Company> posting about". Inputs: company_name, limit (default 10), start. Returns: { elements: [{ updateMetadata, content }], paging }.',
-  examples: ['linkedin feed company google --limit 20'],
+  examples: ['linkedin feed company google --limit 20', 'linkedin feed company google --all'],
+  paginated: { elementsPath: 'elements' },
 
   inputSchema: z.object({
     company_name: z.string().describe('Company universal name (URL slug)'),
