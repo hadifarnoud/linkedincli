@@ -1,6 +1,6 @@
 # linkedincli
 
-Full LinkedIn platform management from your terminal. 43 commands for profiles, posts, messaging, connections, search, feed, engagement, and more — powered by cookie session auth.
+Full LinkedIn platform management from your terminal. 46 commands for profiles, posts, messaging, connections, search, feed, engagement, and more — powered by cookie session auth.
 
 Works as a **CLI** and an **MCP server** (for Claude Code, Cursor, Windsurf, and other AI agents).
 
@@ -77,7 +77,7 @@ linkedin profile posts <urn-id>               # Recent posts by a user
 linkedin profile disconnect <public-id>       # Remove a connection
 ```
 
-### Posts (3 commands)
+### Posts (6 commands)
 
 ```bash
 linkedin posts create --text "My post"                     # Text post
@@ -85,7 +85,12 @@ linkedin posts create --text "With image" --image ./pic.jpg  # Image post
 linkedin posts create --text "Inner circle" --visibility connections
 linkedin posts edit <share-urn> --text "Updated text"      # Edit a post
 linkedin posts delete <share-urn>                          # Delete a post
+linkedin posts list                                        # Your own posts + reposts
+linkedin posts comments                                    # Your comments on others' posts
+linkedin posts reactions                                   # Your reactions on others' posts
 ```
+
+`posts list`, `posts comments`, and `posts reactions` auto-resolve your profile from `/me` — no profile ID needed. Each `posts list` item includes the share URN you can pass to `engage comments-list` and `engage reactions` to view engagement on a specific post.
 
 ### Feed (3 commands)
 
@@ -192,7 +197,7 @@ Auth resolution order: `--li-at`/`--jsessionid` flags → env vars → `~/.linke
 
 ## MCP Server (AI Agents)
 
-All 43 commands are available as MCP tools for Claude Code, Cursor, Windsurf, and other AI agents.
+All 46 commands are available as MCP tools for Claude Code, Cursor, Windsurf, and other AI agents.
 
 ### Claude Code / Cursor / Windsurf
 
