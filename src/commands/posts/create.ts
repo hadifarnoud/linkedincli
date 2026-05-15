@@ -103,6 +103,26 @@ export const postsEditCommand: CommandDefinition = {
   },
 };
 
+async function resolveMyUrnId(client: LinkedInClient): Promise<string> {
+  const me = await client.get<any>('/me');
+  const entityUrn: string = me?.entityUrn ?? me?.miniProfile?.entityUrn ?? '';
+  const urnId = entityUrn.split(':').pop();
+  if (!urnId) {
+    throw new Error('Could not resolve your profile URN from /me');
+  }
+  return urnId;
+}
+
+const myActivityInputSchema = z.object({
+  limit: z.coerce.number().min(1).max(100).default(10).describe('Number of items'),
+  start: z.coerce.number().default(0).describe('Pagination offset'),
+});
+
+const myActivityCliOptions = [
+  { field: 'limit', flags: '-l, --limit <number>', description: 'Number of items' },
+  { field: 'start', flags: '--start <number>', description: 'Pagination offset' },
+];
+
 export const postsListCommand: CommandDefinition = {
   name: 'posts_list',
   group: 'posts',
@@ -113,30 +133,77 @@ export const postsListCommand: CommandDefinition = {
     'linkedin posts list --limit 50',
   ],
 
-  inputSchema: z.object({
-    limit: z.coerce.number().min(1).max(100).default(10).describe('Number of posts'),
-    start: z.coerce.number().default(0).describe('Pagination offset'),
-  }),
+  inputSchema: myActivityInputSchema,
 
   cliMappings: {
-    options: [
-      { field: 'limit', flags: '-l, --limit <number>', description: 'Number of posts' },
-      { field: 'start', flags: '--start <number>', description: 'Pagination offset' },
-    ],
+    options: myActivityCliOptions,
   },
 
   handler: async (input, client) => {
-    const me = await client.get<any>('/me');
-    const entityUrn: string = me?.entityUrn ?? me?.miniProfile?.entityUrn ?? '';
-    const urnId = entityUrn.split(':').pop();
-    if (!urnId) {
-      throw new Error('Could not resolve your profile URN from /me');
-    }
+    const urnId = await resolveMyUrnId(client);
     return client.get('/identity/profileUpdatesV2', {
       count: input.limit,
       start: input.start,
       q: 'memberShareFeed',
       moduleKey: 'member-shares:phone',
+      includeLongTermHistory: true,
+      profileUrn: `urn:li:fsd_profile:${urnId}`,
+    });
+  },
+};
+
+export const postsCommentsCommand: CommandDefinition = {
+  name: 'posts_comments',
+  group: 'posts',
+  subcommand: 'comments',
+  description: 'List your recent comments on other people\'s posts',
+  examples: [
+    'linkedin posts comments',
+    'linkedin posts comments --limit 50',
+  ],
+
+  inputSchema: myActivityInputSchema,
+
+  cliMappings: {
+    options: myActivityCliOptions,
+  },
+
+  handler: async (input, client) => {
+    const urnId = await resolveMyUrnId(client);
+    return client.get('/identity/profileUpdatesV2', {
+      count: input.limit,
+      start: input.start,
+      q: 'memberComments',
+      moduleKey: 'member-comments:phone',
+      includeLongTermHistory: true,
+      profileUrn: `urn:li:fsd_profile:${urnId}`,
+    });
+  },
+};
+
+export const postsReactionsCommand: CommandDefinition = {
+  name: 'posts_reactions',
+  group: 'posts',
+  subcommand: 'reactions',
+  description: 'List your recent reactions (likes) on other people\'s posts',
+  examples: [
+    'linkedin posts reactions',
+    'linkedin posts reactions --limit 50',
+  ],
+
+  inputSchema: myActivityInputSchema,
+
+  cliMappings: {
+    options: myActivityCliOptions,
+  },
+
+  handler: async (input, client) => {
+    const urnId = await resolveMyUrnId(client);
+    return client.get('/identity/profileUpdatesV2', {
+      count: input.limit,
+      start: input.start,
+      q: 'memberLikes',
+      moduleKey: 'member-likes:phone',
       includeLongTermHistory: true,
       profileUrn: `urn:li:fsd_profile:${urnId}`,
     });
@@ -228,5 +295,7 @@ export const postsCommands = [
   postsCreateCommand,
   postsEditCommand,
   postsListCommand,
+  postsCommentsCommand,
+  postsReactionsCommand,
   postsDeleteCommand,
 ];
