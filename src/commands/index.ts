@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import type { CommandDefinition, GlobalOptions, LinkedInClient } from '../core/types.js';
 import { resolveAuth } from '../core/auth.js';
 import { createClient } from '../core/client.js';
-import { output, outputError } from '../core/output.js';
+import { applySummary, output, outputError } from '../core/output.js';
 import { registerLoginCommand, registerLogoutCommand, registerStatusCommand } from './auth/login.js';
 import { registerMcpCommand } from './mcp/index.js';
 
@@ -144,7 +144,8 @@ function registerCommand(parent: Command, cmdDef: CommandDefinition): void {
 
       // Execute handler
       const result = await cmdDef.handler(parsed.data, client);
-      output(result, globalOpts);
+      const finalResult = applySummary(result, cmdDef, globalOpts);
+      output(finalResult, globalOpts);
     } catch (error) {
       const globalOpts = cmd.optsWithGlobals() as GlobalOptions;
       outputError(error, globalOpts);

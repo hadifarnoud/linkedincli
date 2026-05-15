@@ -26,6 +26,8 @@ export interface CommandDefinition<TInput extends z.ZodObject<any> = z.ZodObject
   paginated?: boolean;
   /** Handler function — called for both CLI and MCP */
   handler: (input: any, client: LinkedInClient) => Promise<unknown>;
+  /** Optional summarizer — flattens raw Voyager response to a stable shape when --summary is on */
+  summarize?: (raw: unknown) => unknown;
 }
 
 export interface CliMapping {
@@ -46,6 +48,7 @@ export interface GlobalOptions {
   pretty?: boolean;
   quiet?: boolean;
   fields?: string;
+  summary?: boolean;
 }
 
 export interface LinkedInAuth {

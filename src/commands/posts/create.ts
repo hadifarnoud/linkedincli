@@ -3,6 +3,7 @@ import { readFile, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import type { CommandDefinition, LinkedInClient } from '../../core/types.js';
 import { generateTrackingId } from '../../core/client.js';
+import { summarizePostsList, summarizeCommentsList } from '../../core/summarize.js';
 
 export const postsCreateCommand: CommandDefinition = {
   name: 'posts_create',
@@ -150,6 +151,8 @@ export const postsListCommand: CommandDefinition = {
       profileUrn: `urn:li:fsd_profile:${urnId}`,
     });
   },
+
+  summarize: summarizePostsList,
 };
 
 export const postsCommentsCommand: CommandDefinition = {
@@ -179,6 +182,8 @@ export const postsCommentsCommand: CommandDefinition = {
       profileUrn: `urn:li:fsd_profile:${urnId}`,
     });
   },
+
+  summarize: summarizeCommentsList,
 };
 
 export const postsReactionsCommand: CommandDefinition = {
@@ -208,6 +213,8 @@ export const postsReactionsCommand: CommandDefinition = {
       profileUrn: `urn:li:fsd_profile:${urnId}`,
     });
   },
+
+  summarize: summarizePostsList,
 };
 
 export const postsViewCommand: CommandDefinition = {

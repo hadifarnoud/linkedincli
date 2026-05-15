@@ -26,11 +26,19 @@ export async function startMcpServer(): Promise<void> {
       async (args: Record<string, unknown>) => {
         try {
           const result = await cmdDef.handler(args as any, client);
+          let payload: unknown = result;
+          if (cmdDef.summarize) {
+            try {
+              payload = cmdDef.summarize(result);
+            } catch {
+              payload = result;
+            }
+          }
           return {
             content: [
               {
                 type: 'text' as const,
-                text: JSON.stringify(result, null, 2),
+                text: JSON.stringify(payload, null, 2),
               },
             ],
           };
