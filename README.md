@@ -8,16 +8,16 @@ Works as a **CLI** and an **MCP server** (for Claude Code, Cursor, Windsurf, and
 
 ```bash
 # Install globally
-npm install -g @bcharleson/linkedincli
+npm install -g @hadifarnoud/linkedincli
 
 # This installs the `linkedin` command:
 linkedin --help
 
 # Or run without installing
-npx @bcharleson/linkedincli --help
+npx @hadifarnoud/linkedincli --help
 ```
 
-> **Note:** The npm package is `@bcharleson/linkedincli` but the CLI command is just **`linkedin`**.
+> **Note:** The npm package is `@hadifarnoud/linkedincli` but the CLI command is just **`linkedin`**.
 
 ## Quick Start
 
@@ -225,7 +225,7 @@ Or if using `npx`:
   "mcpServers": {
     "linkedin": {
       "command": "npx",
-      "args": ["-y", "@bcharleson/linkedincli", "mcp"]
+      "args": ["-y", "@hadifarnoud/linkedincli", "mcp"]
     }
   }
 }
