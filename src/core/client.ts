@@ -22,6 +22,44 @@ function randomDelay(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Node's `fetch` throws a generic `TypeError: fetch failed` for any transport-level
+ * failure, hiding the real reason in `error.cause`. Unwrap it into a useful message.
+ */
+function describeNetworkError(error: TypeError, url: string): string {
+  const host = (() => {
+    try {
+      return new URL(url).host;
+    } catch {
+      return url;
+    }
+  })();
+
+  const cause = (error as { cause?: unknown }).cause;
+  const code =
+    cause && typeof cause === 'object' && 'code' in cause
+      ? String((cause as { code: unknown }).code)
+      : undefined;
+  const detail =
+    cause instanceof Error ? cause.message : cause !== undefined ? String(cause) : undefined;
+
+  const hints: Record<string, string> = {
+    ENOTFOUND: `DNS lookup for ${host} failed — check your internet connection or DNS.`,
+    EAI_AGAIN: `DNS lookup for ${host} timed out — check your internet connection or DNS.`,
+    ECONNREFUSED: `Connection to ${host} was refused — a proxy/firewall may be blocking it.`,
+    ECONNRESET: `Connection to ${host} was reset — likely a proxy, firewall, or flaky network.`,
+    ETIMEDOUT: `Connection to ${host} timed out — check your network or proxy settings.`,
+    CERT_HAS_EXPIRED: `TLS certificate error talking to ${host} — check system clock / proxy CA.`,
+    UNABLE_TO_VERIFY_LEAF_SIGNATURE: `TLS verification failed for ${host} — a proxy may be intercepting HTTPS.`,
+    DEPTH_ZERO_SELF_SIGNED_CERT: `TLS verification failed for ${host} — a proxy may be intercepting HTTPS.`,
+  };
+
+  const friendly =
+    (code && hints[code]) || `Could not reach ${host} (no HTTP response was received).`;
+  const suffix = [code, detail].filter(Boolean).join(': ');
+  return suffix ? `${friendly} [${suffix}]` : friendly;
+}
+
 /** Generate a random tracking ID (16 random bytes, base64) */
 export function generateTrackingId(): string {
   const bytes = new Uint8Array(16);
@@ -172,11 +210,15 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
           throw error;
         }
         if (error instanceof TypeError && error.message.includes('fetch')) {
-          lastError = new LinkedInError('Network error: unable to connect', 'NETWORK_ERROR');
+          lastError = new LinkedInError(describeNetworkError(error, url), 'NETWORK_ERROR');
           if (attempt < MAX_RETRIES) continue;
+          throw lastError;
         }
         if (error instanceof DOMException && error.name === 'AbortError') {
-          lastError = new LinkedInError('Request timed out', 'TIMEOUT');
+          lastError = new LinkedInError(
+            `Request timed out after ${TIMEOUT_MS / 1000}s (${options.method} ${options.path})`,
+            'TIMEOUT',
+          );
           // Don't retry write timeouts
           if (options.method !== 'GET' || attempt >= MAX_RETRIES) {
             throw lastError;
@@ -186,6 +228,7 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
         if (error instanceof Error && !(error instanceof LinkedInError)) {
           lastError = error;
           if (attempt < MAX_RETRIES) continue;
+          throw lastError;
         }
         throw error;
       }
