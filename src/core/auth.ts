@@ -33,7 +33,7 @@ export async function resolveAuth(flags?: {
     if (!liAt) {
       throw new AuthError('Cookie string is missing li_at. Re-copy the full cookie header.');
     }
-    return { liAt, jsessionid, cookie: cookie.trim() };
+    return { liAt, jsessionid, cookie: cookie.trim(), headers: config?.headers };
   }
 
   const liAt = flags?.liAt ?? process.env.LINKEDIN_LI_AT ?? config?.li_at;
@@ -51,5 +51,5 @@ export async function resolveAuth(flags?: {
     );
   }
 
-  return { liAt, jsessionid };
+  return { liAt, jsessionid, headers: config?.headers };
 }

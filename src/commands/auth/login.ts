@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { saveConfig } from '../../core/config.js';
 import { createClient, extractCookieValue } from '../../core/client.js';
+import { parseCurlRequest, looksLikeCurl } from '../../core/curl.js';
 import { output, outputError } from '../../core/output.js';
 import type { GlobalOptions } from '../../core/types.js';
 
@@ -24,15 +25,18 @@ export function registerLoginCommand(program: Command): void {
         let liAt = (localOpts.liAt ?? globalOpts.liAt) as string | undefined;
         let jsessionid = (localOpts.jsessionid ?? globalOpts.jsessionid) as string | undefined;
         const skipValidation = localOpts.skipValidation as boolean | undefined;
+        let headers: Record<string, string> | undefined;
 
-        // Interactive mode if nothing provided as flags. Prefer the full cookie
-        // string — a bare li_at gets the session revoked by LinkedIn.
+        // Interactive mode if nothing provided as flags. Prefer "Copy as cURL"
+        // so we capture the full cookie jar AND the browser headers — a bare
+        // li_at, or even the cookies without matching headers, gets the session
+        // revoked by LinkedIn.
         if (!cookie && !liAt && !jsessionid) {
           const { input: promptInput } = await import('@inquirer/prompts');
 
           cookie = await promptInput({
             message:
-              'Paste your full LinkedIn cookie string (DevTools → Network → any linkedin.com request → right-click → Copy → Copy as cURL, or copy the "cookie:" request header). Leave blank to enter li_at/JSESSIONID individually:',
+              'Paste a "Copy as cURL" of any linkedin.com request (DevTools → Network → right-click → Copy → Copy as cURL). This captures your cookies AND browser headers. Leave blank to enter li_at/JSESSIONID individually:',
           });
 
           if (!cookie?.trim()) {
@@ -46,20 +50,24 @@ export function registerLoginCommand(program: Command): void {
           }
         }
 
-        // If a full cookie string was supplied (flag or prompt), derive li_at +
-        // JSESSIONID from it and store the whole jar.
+        // If a cURL command or full cookie string was supplied, extract the
+        // headers + cookie jar, then derive li_at + JSESSIONID from the jar.
         if (cookie?.trim()) {
           cookie = cookie.trim();
-          // A pasted "Copy as cURL" may wrap the cookie in -H 'cookie: ...'; pull
-          // out just the cookie value if so.
-          const hMatch = cookie.match(/(?:-H\s+['"]?cookie:\s*)([^'"]+)/i);
-          if (hMatch) cookie = hMatch[1].trim();
+
+          if (looksLikeCurl(cookie)) {
+            const parsed = parseCurlRequest(cookie);
+            if (Object.keys(parsed.headers).length > 0) headers = parsed.headers;
+            if (parsed.cookie) cookie = parsed.cookie.trim();
+          }
 
           liAt = extractCookieValue(cookie, 'li_at') ?? liAt;
           jsessionid = extractCookieValue(cookie, 'JSESSIONID') ?? jsessionid;
 
           if (!liAt || !jsessionid) {
-            throw new Error('Cookie string must contain both li_at and JSESSIONID.');
+            throw new Error(
+              'Could not find li_at and JSESSIONID in the pasted value. Paste the full cookie string or a "Copy as cURL".',
+            );
           }
         }
 
@@ -75,12 +83,13 @@ export function registerLoginCommand(program: Command): void {
           li_at: liAt,
           jsessionid,
           ...(cookie ? { cookie } : {}),
+          ...(headers ? { headers } : {}),
         });
 
         // Optionally validate by fetching /me
         if (!skipValidation) {
           try {
-            const client = createClient({ liAt, jsessionid, cookie });
+            const client = createClient({ liAt, jsessionid, cookie, headers });
             const me = await client.get<any>('/me');
             const profileName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || 'Unknown';
             const profileUrn = me?.entityUrn ?? me?.publicIdentifier ?? '';
@@ -90,6 +99,7 @@ export function registerLoginCommand(program: Command): void {
               li_at: liAt,
               jsessionid,
               ...(cookie ? { cookie } : {}),
+              ...(headers ? { headers } : {}),
               profile_name: profileName,
               profile_urn: profileUrn,
             });
@@ -173,6 +183,7 @@ export function registerStatusCommand(program: Command): void {
           liAt: config.li_at,
           jsessionid: config.jsessionid,
           cookie: config.cookie,
+          headers: config.headers,
         });
         try {
           const me = await client.get<any>('/me');

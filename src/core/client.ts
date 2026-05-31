@@ -93,9 +93,8 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
   const csrfToken = jsessionid;
   const cookieHeader = fullCookie || `JSESSIONID="${csrfToken}"; li_at=${auth.liAt}`;
 
-  const baseHeaders: Record<string, string> = {
-    'csrf-token': csrfToken,
-    cookie: cookieHeader,
+  // Defaults — used when no captured browser headers are available.
+  const defaultHeaders: Record<string, string> = {
     'user-agent':
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     accept: 'application/vnd.linkedin.normalized+json+2.1',
@@ -109,6 +108,34 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
       deviceFormFactor: 'DESKTOP',
       mpName: 'voyager-web',
     }),
+  };
+
+  // Replay captured browser headers (user-agent, x-li-track, sec-ch-ua,
+  // x-li-page-instance, ...) so the request fingerprint matches the browser.
+  // These headers must never be replayed — fetch/undici manages them, or we set
+  // them per-request, or they'd corrupt the request.
+  const DENY = new Set([
+    'cookie',
+    'content-length',
+    'content-type',
+    'host',
+    'connection',
+    'accept-encoding',
+    'origin',
+  ]);
+  const replayHeaders: Record<string, string> = {};
+  for (const [key, value] of Object.entries(auth.headers ?? {})) {
+    const lower = key.toLowerCase();
+    if (lower.startsWith(':') || DENY.has(lower)) continue;
+    replayHeaders[lower] = value;
+  }
+
+  const baseHeaders: Record<string, string> = {
+    ...defaultHeaders,
+    ...replayHeaders,
+    // Always force the managed cookie + CSRF, regardless of what was captured.
+    'csrf-token': csrfToken,
+    cookie: cookieHeader,
   };
 
   let lastRequestTime = 0;

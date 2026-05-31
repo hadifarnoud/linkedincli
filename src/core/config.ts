@@ -10,6 +10,8 @@ export interface LinkedInConfig {
   jsessionid: string;
   /** Full browser cookie string — preferred over li_at/jsessionid when present. */
   cookie?: string;
+  /** Browser request headers captured at login, replayed to match the fingerprint. */
+  headers?: Record<string, string>;
   profile_name?: string;
   profile_urn?: string;
 }
