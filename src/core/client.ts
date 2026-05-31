@@ -166,7 +166,23 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
               return location;
             }
           })();
+          // LinkedIn signals an invalidated token by clearing site data and/or
+          // expiring li_at via Set-Cookie (often while redirecting to the same
+          // URL). This is distinct from a normal expiry and usually means the
+          // cookie was rejected outright — e.g. replayed from a different IP.
+          const setCookie = response.headers.get('set-cookie') ?? '';
+          const tokenKilled =
+            response.headers.has('clear-site-data') || /li_at=("?)delete/i.test(setCookie);
           const looksLikeLogin = /login|authwall|checkpoint|uas\/login/i.test(location);
+
+          if (tokenKilled) {
+            throw new AuthError(
+              'LinkedIn rejected and invalidated your li_at token (it cleared the session). ' +
+                'The cookie is expired, malformed, or was flagged — commonly because it was ' +
+                'copied from a browser on a different IP/device. Re-copy li_at from a ' +
+                'logged-in browser on this machine, then run: linkedin login',
+            );
+          }
           throw new AuthError(
             looksLikeLogin || !location
               ? 'Session expired or invalid — LinkedIn redirected to login. Run: linkedin login'
