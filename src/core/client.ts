@@ -208,6 +208,18 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
           );
         }
 
+        // LinkedIn can return 200 while simultaneously killing the session
+        // (clear-site-data / Set-Cookie expiring li_at). This happens when the
+        // request's header fingerprint is flagged as non-browser. Treat it as an
+        // auth failure rather than silently "succeeding" once.
+        const setCookieHdr = response.headers.get('set-cookie') ?? '';
+        if (response.headers.has('clear-site-data') || /li_at=("?)delete/i.test(setCookieHdr)) {
+          throw new AuthError(
+            'LinkedIn accepted the cookies but revoked the session (it flagged the request as ' +
+              'non-browser). This is a request-fingerprint issue, not a bad cookie.',
+          );
+        }
+
         // Check for challenge / restricted page (only on non-OK responses)
         const contentType = response.headers.get('content-type') ?? '';
         if (!response.ok && contentType.includes('text/html')) {
