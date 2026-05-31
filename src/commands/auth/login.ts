@@ -1,38 +1,65 @@
 import { Command } from 'commander';
 import { saveConfig } from '../../core/config.js';
-import { createClient } from '../../core/client.js';
+import { createClient, extractCookieValue } from '../../core/client.js';
 import { output, outputError } from '../../core/output.js';
 import type { GlobalOptions } from '../../core/types.js';
 
 export function registerLoginCommand(program: Command): void {
   program
     .command('login')
-    .description('Store your LinkedIn session cookies (li_at + JSESSIONID) for CLI use')
-    .option('--li-at <cookie>', 'li_at cookie value (from browser DevTools)')
-    .option('--jsessionid <cookie>', 'JSESSIONID cookie value (from browser DevTools)')
+    .description('Store your LinkedIn session cookies for CLI use')
+    .option(
+      '--cookie <string>',
+      'Full cookie string from your browser (recommended — DevTools → Network → any linkedin.com request → copy the "cookie:" request header)',
+    )
+    .option('--li-at <cookie>', 'li_at cookie value (legacy; LinkedIn may reject a bare token)')
+    .option('--jsessionid <cookie>', 'JSESSIONID cookie value (legacy)')
     .option('--skip-validation', 'Save cookies without verifying them against LinkedIn')
     .action(async function (this: Command) {
       const localOpts = this.opts() as Record<string, string | boolean | undefined>;
       const globalOpts = this.optsWithGlobals() as GlobalOptions & Record<string, string | boolean | undefined>;
 
       try {
+        let cookie = (localOpts.cookie ?? globalOpts.cookie) as string | undefined;
         let liAt = (localOpts.liAt ?? globalOpts.liAt) as string | undefined;
         let jsessionid = (localOpts.jsessionid ?? globalOpts.jsessionid) as string | undefined;
         const skipValidation = localOpts.skipValidation as boolean | undefined;
 
-        // Interactive mode if cookies not provided as flags
-        if (!liAt || !jsessionid) {
+        // Interactive mode if nothing provided as flags. Prefer the full cookie
+        // string — a bare li_at gets the session revoked by LinkedIn.
+        if (!cookie && !liAt && !jsessionid) {
           const { input: promptInput } = await import('@inquirer/prompts');
 
-          if (!liAt) {
+          cookie = await promptInput({
+            message:
+              'Paste your full LinkedIn cookie string (DevTools → Network → any linkedin.com request → right-click → Copy → Copy as cURL, or copy the "cookie:" request header). Leave blank to enter li_at/JSESSIONID individually:',
+          });
+
+          if (!cookie?.trim()) {
+            cookie = undefined;
             liAt = await promptInput({
-              message: 'Paste your li_at cookie value (from browser DevTools → Application → Cookies → linkedin.com):',
+              message: 'Paste your li_at cookie value (from DevTools → Application → Cookies → linkedin.com):',
             });
-          }
-          if (!jsessionid) {
             jsessionid = await promptInput({
               message: 'Paste your JSESSIONID cookie value (include the quotes if present):',
             });
+          }
+        }
+
+        // If a full cookie string was supplied (flag or prompt), derive li_at +
+        // JSESSIONID from it and store the whole jar.
+        if (cookie?.trim()) {
+          cookie = cookie.trim();
+          // A pasted "Copy as cURL" may wrap the cookie in -H 'cookie: ...'; pull
+          // out just the cookie value if so.
+          const hMatch = cookie.match(/(?:-H\s+['"]?cookie:\s*)([^'"]+)/i);
+          if (hMatch) cookie = hMatch[1].trim();
+
+          liAt = extractCookieValue(cookie, 'li_at') ?? liAt;
+          jsessionid = extractCookieValue(cookie, 'JSESSIONID') ?? jsessionid;
+
+          if (!liAt || !jsessionid) {
+            throw new Error('Cookie string must contain both li_at and JSESSIONID.');
           }
         }
 
@@ -47,12 +74,13 @@ export function registerLoginCommand(program: Command): void {
         await saveConfig({
           li_at: liAt,
           jsessionid,
+          ...(cookie ? { cookie } : {}),
         });
 
         // Optionally validate by fetching /me
         if (!skipValidation) {
           try {
-            const client = createClient({ liAt, jsessionid });
+            const client = createClient({ liAt, jsessionid, cookie });
             const me = await client.get<any>('/me');
             const profileName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || 'Unknown';
             const profileUrn = me?.entityUrn ?? me?.publicIdentifier ?? '';
@@ -61,6 +89,7 @@ export function registerLoginCommand(program: Command): void {
             await saveConfig({
               li_at: liAt,
               jsessionid,
+              ...(cookie ? { cookie } : {}),
               profile_name: profileName,
               profile_urn: profileUrn,
             });
@@ -140,7 +169,11 @@ export function registerStatusCommand(program: Command): void {
         }
 
         // --verify: make a live API call
-        const client = createClient({ liAt: config.li_at, jsessionid: config.jsessionid });
+        const client = createClient({
+          liAt: config.li_at,
+          jsessionid: config.jsessionid,
+          cookie: config.cookie,
+        });
         try {
           const me = await client.get<any>('/me');
           const name = [me?.firstName, me?.lastName].filter(Boolean).join(' ');

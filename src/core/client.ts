@@ -65,6 +65,14 @@ function describeNetworkError(error: TypeError, url: string): string {
   return suffix ? `${friendly} [${suffix}]` : friendly;
 }
 
+/** Extract a single cookie value from a full Cookie header string. */
+export function extractCookieValue(cookieHeader: string, name: string): string | undefined {
+  const match = cookieHeader.match(
+    new RegExp(`(?:^|;\\s*)${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}=([^;]+)`),
+  );
+  return match ? match[1].trim() : undefined;
+}
+
 /** Generate a random tracking ID (16 random bytes, base64) */
 export function generateTrackingId(): string {
   const bytes = new Uint8Array(16);
@@ -73,11 +81,21 @@ export function generateTrackingId(): string {
 }
 
 export function createClient(auth: LinkedInAuth): LinkedInClient {
-  const csrfToken = auth.jsessionid.replace(/"/g, '');
+  // Prefer the full browser cookie jar when available. A bare `li_at` +
+  // `JSESSIONID` request looks like a stolen-token replay to LinkedIn, which
+  // responds by revoking the session (clear-site-data) — logging the user out
+  // everywhere. Sending the complete cookie string avoids that.
+  const fullCookie = auth.cookie?.trim();
+  const jsessionid =
+    auth.jsessionid?.replace(/"/g, '') ||
+    (fullCookie ? extractCookieValue(fullCookie, 'JSESSIONID')?.replace(/"/g, '') : undefined) ||
+    '';
+  const csrfToken = jsessionid;
+  const cookieHeader = fullCookie || `JSESSIONID="${csrfToken}"; li_at=${auth.liAt}`;
 
   const baseHeaders: Record<string, string> = {
     'csrf-token': csrfToken,
-    cookie: `JSESSIONID="${csrfToken}"; li_at=${auth.liAt}`,
+    cookie: cookieHeader,
     'user-agent':
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     accept: 'application/vnd.linkedin.normalized+json+2.1',

@@ -8,6 +8,8 @@ const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 export interface LinkedInConfig {
   li_at: string;
   jsessionid: string;
+  /** Full browser cookie string — preferred over li_at/jsessionid when present. */
+  cookie?: string;
   profile_name?: string;
   profile_urn?: string;
 }

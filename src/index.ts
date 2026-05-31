@@ -13,6 +13,7 @@ program
   .name('linkedin')
   .description('CLI and MCP server for LinkedIn — full platform management via cookie session auth')
   .version(pkg.version)
+  .option('--cookie <string>', 'Full browser cookie string (overrides LINKEDIN_COOKIE env var and stored config; recommended)')
   .option('--li-at <cookie>', 'li_at cookie (overrides LINKEDIN_LI_AT env var and stored config)')
   .option('--jsessionid <cookie>', 'JSESSIONID cookie (overrides LINKEDIN_JSESSIONID env var and stored config)')
   .option('--output <format>', 'Output format: json (default) or pretty', 'json')
