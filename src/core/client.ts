@@ -49,13 +49,18 @@ function describeNetworkError(error: TypeError, url: string): string {
     ECONNREFUSED: `Connection to ${host} was refused — a proxy/firewall may be blocking it.`,
     ECONNRESET: `Connection to ${host} was reset — likely a proxy, firewall, or flaky network.`,
     ETIMEDOUT: `Connection to ${host} timed out — check your network or proxy settings.`,
+    UND_ERR_REQ_RETRY: `Too many redirects from ${host} — session is likely invalid. Run: linkedin login`,
     CERT_HAS_EXPIRED: `TLS certificate error talking to ${host} — check system clock / proxy CA.`,
     UNABLE_TO_VERIFY_LEAF_SIGNATURE: `TLS verification failed for ${host} — a proxy may be intercepting HTTPS.`,
     DEPTH_ZERO_SELF_SIGNED_CERT: `TLS verification failed for ${host} — a proxy may be intercepting HTTPS.`,
   };
 
+  const redirectLoop = /redirect count exceeded|too many redirects/i.test(detail ?? '');
   const friendly =
-    (code && hints[code]) || `Could not reach ${host} (no HTTP response was received).`;
+    (code && hints[code]) ||
+    (redirectLoop
+      ? `Too many redirects from ${host} — session is likely invalid. Run: linkedin login`
+      : `Could not reach ${host} (no HTTP response was received).`);
   const suffix = [code, detail].filter(Boolean).join(': ');
   return suffix ? `${friendly} [${suffix}]` : friendly;
 }
@@ -141,10 +146,33 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
           headers,
           body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
           signal: controller.signal,
+          // Don't auto-follow redirects: the Voyager API never legitimately
+          // redirects. A 3xx means LinkedIn is bouncing us to the login/authwall
+          // page — i.e. the session is invalid. Following it just loops until
+          // undici throws an opaque "redirect count exceeded".
+          redirect: 'manual',
         });
 
         clearTimeout(timeout);
         lastRequestTime = Date.now();
+
+        // A redirect from an API call means the session was rejected.
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get('location') ?? '';
+          const target = (() => {
+            try {
+              return location ? new URL(location, url).pathname : '';
+            } catch {
+              return location;
+            }
+          })();
+          const looksLikeLogin = /login|authwall|checkpoint|uas\/login/i.test(location);
+          throw new AuthError(
+            looksLikeLogin || !location
+              ? 'Session expired or invalid — LinkedIn redirected to login. Run: linkedin login'
+              : `Unexpected redirect to ${target} — session may be invalid. Run: linkedin login`,
+          );
+        }
 
         // Check for challenge / restricted page (only on non-OK responses)
         const contentType = response.headers.get('content-type') ?? '';
