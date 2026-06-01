@@ -1,4 +1,6 @@
 import type { LinkedInAuth, LinkedInClient } from './types.js';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import {
   AuthError,
   ChallengeError,
@@ -15,6 +17,118 @@ const LINKEDIN_BASE = 'https://www.linkedin.com';
 const MAX_RETRIES = 3;
 const TIMEOUT_MS = 30_000;
 const MIN_REQUEST_GAP_MS = 2_000;
+
+/**
+ * The minimal slice of `Response` the request loop uses. Both native `fetch`
+ * and the curl transport satisfy this, so the rest of the code is transport-
+ * agnostic.
+ */
+interface HttpResponse {
+  status: number;
+  ok: boolean;
+  headers: { get(name: string): string | null; has(name: string): boolean };
+  text(): Promise<string>;
+}
+
+let curlAvailable: boolean | null = null;
+function hasCurl(): boolean {
+  if (curlAvailable === null) {
+    try {
+      curlAvailable = spawnSync('curl', ['--version'], { stdio: 'ignore' }).status === 0;
+    } catch {
+      curlAvailable = false;
+    }
+  }
+  return curlAvailable;
+}
+
+/**
+ * Pick the HTTP transport. Node's `fetch` (undici) has a TLS/HTTP-2 fingerprint
+ * that LinkedIn/Cloudflare flags as a bot, revoking the session. The system
+ * `curl` binary is accepted, so prefer it when available. Override with
+ * LINKEDIN_TRANSPORT=fetch|curl.
+ */
+function selectTransport(): 'curl' | 'fetch' {
+  const t = (process.env.LINKEDIN_TRANSPORT ?? 'auto').toLowerCase();
+  if (t === 'fetch') return 'fetch';
+  if (t === 'curl') return 'curl';
+  return hasCurl() ? 'curl' : 'fetch';
+}
+
+function parseHeaderBlock(headerText: string): { status: number; headers: Map<string, string> } {
+  const lines = headerText.split(/\r?\n/);
+  const statusLine = lines.shift() ?? '';
+  const status = Number(statusLine.split(/\s+/)[1]) || 0;
+  const headers = new Map<string, string>();
+  for (const line of lines) {
+    const idx = line.indexOf(':');
+    if (idx === -1) continue;
+    const name = line.slice(0, idx).trim().toLowerCase();
+    if (!name) continue;
+    const value = line.slice(idx + 1).trim();
+    const existing = headers.get(name);
+    headers.set(name, existing ? `${existing}, ${value}` : value);
+  }
+  return { status, headers };
+}
+
+/** Issue a request via the system `curl` binary, returning an HttpResponse. */
+async function curlFetch(
+  url: string,
+  opts: { method: string; headers: Record<string, string>; body?: string },
+): Promise<HttpResponse> {
+  const args = [
+    '-sS',
+    '-i', // include response headers in stdout
+    '--compressed',
+    '--max-time',
+    String(Math.ceil(TIMEOUT_MS / 1000)),
+    '-X',
+    opts.method,
+    url,
+    '-H',
+    'Expect:', // disable 100-continue so there's a single header block
+  ];
+  for (const [key, value] of Object.entries(opts.headers)) {
+    args.push('-H', `${key}: ${value}`);
+  }
+  if (opts.body !== undefined) args.push('--data-binary', '@-');
+
+  const child = spawn('curl', args);
+  const out: Buffer[] = [];
+  const err: Buffer[] = [];
+  child.stdout.on('data', (d: Buffer) => out.push(d));
+  child.stderr.on('data', (d: Buffer) => err.push(d));
+  child.stdin.end(opts.body ?? '');
+
+  const [code] = (await once(child, 'close')) as [number];
+  if (code !== 0) {
+    const detail = Buffer.concat(err).toString().trim();
+    // Plain Error → the retry loop treats it as a transient network failure.
+    throw new Error(`curl transport error (exit ${code})${detail ? `: ${detail}` : ''}`);
+  }
+
+  const raw = Buffer.concat(out);
+  let sep = raw.indexOf('\r\n\r\n');
+  let sepLen = 4;
+  if (sep === -1) {
+    sep = raw.indexOf('\n\n');
+    sepLen = 2;
+  }
+  const headerText = (sep === -1 ? raw : raw.subarray(0, sep)).toString('utf8');
+  const bodyBuf = sep === -1 ? Buffer.alloc(0) : raw.subarray(sep + sepLen);
+  const { status, headers } = parseHeaderBlock(headerText);
+
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    headers: {
+      get: (name) => headers.get(name.toLowerCase()) ?? null,
+      has: (name) => headers.has(name.toLowerCase()),
+    },
+    text: async () => bodyBuf.toString('utf8'),
+  };
+}
 
 /** Human-like delay to avoid rate limits (2-5s) */
 function randomDelay(): Promise<void> {
@@ -139,6 +253,7 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
   };
 
   let lastRequestTime = 0;
+  const transport = selectTransport();
 
   async function request<T = unknown>(options: {
     method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
@@ -183,22 +298,32 @@ export function createClient(auth: LinkedInAuth): LinkedInClient {
       }
 
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        const bodyString = options.body !== undefined ? JSON.stringify(options.body) : undefined;
+        let response: HttpResponse;
 
-        const response = await fetch(url, {
-          method: options.method,
-          headers,
-          body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-          signal: controller.signal,
-          // Don't auto-follow redirects: the Voyager API never legitimately
-          // redirects. A 3xx means LinkedIn is bouncing us to the login/authwall
-          // page — i.e. the session is invalid. Following it just loops until
-          // undici throws an opaque "redirect count exceeded".
-          redirect: 'manual',
-        });
+        if (transport === 'curl') {
+          // curl does not follow redirects without -L, matching our manual policy.
+          response = await curlFetch(url, { method: options.method, headers, body: bodyString });
+        } else {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+          try {
+            response = await fetch(url, {
+              method: options.method,
+              headers,
+              body: bodyString,
+              signal: controller.signal,
+              // Don't auto-follow redirects: the Voyager API never legitimately
+              // redirects. A 3xx means LinkedIn is bouncing us to the login/
+              // authwall page — i.e. the session is invalid. Following it just
+              // loops until undici throws an opaque "redirect count exceeded".
+              redirect: 'manual',
+            });
+          } finally {
+            clearTimeout(timeout);
+          }
+        }
 
-        clearTimeout(timeout);
         lastRequestTime = Date.now();
 
         // A redirect from an API call means the session was rejected.
