@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { saveConfig } from '../../core/config.js';
 import { createClient, extractCookieValue } from '../../core/client.js';
 import { parseCurlRequest, looksLikeCurl } from '../../core/curl.js';
+import { extractMeProfile } from '../../core/me.js';
 import { output, outputError } from '../../core/output.js';
 import type { GlobalOptions } from '../../core/types.js';
 
@@ -116,8 +117,9 @@ export function registerLoginCommand(program: Command): void {
           try {
             const client = createClient({ liAt, jsessionid, cookie, headers });
             const me = await client.get<any>('/me');
-            const profileName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || 'Unknown';
-            const profileUrn = me?.entityUrn ?? me?.publicIdentifier ?? '';
+            const parsed = extractMeProfile(me);
+            const profileName = parsed.name || 'Unknown';
+            const profileUrn = parsed.entityUrn ?? '';
 
             // Update config with profile info
             await saveConfig({
@@ -212,11 +214,11 @@ export function registerStatusCommand(program: Command): void {
         });
         try {
           const me = await client.get<any>('/me');
-          const name = [me?.firstName, me?.lastName].filter(Boolean).join(' ');
+          const parsed = extractMeProfile(me);
           output({
             logged_in: true,
-            profile: name || config.profile_name || 'Unknown',
-            urn: me?.entityUrn || config.profile_urn,
+            profile: parsed.name || config.profile_name || 'Unknown',
+            urn: parsed.entityUrn || config.profile_urn,
             session_valid: true,
           }, globalOpts);
         } catch (err: any) {
