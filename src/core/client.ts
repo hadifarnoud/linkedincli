@@ -72,6 +72,38 @@ function parseHeaderBlock(headerText: string): { status: number; headers: Map<st
   return { status, headers };
 }
 
+/**
+ * Split `curl -i` output into the final response header block and the body.
+ *
+ * curl can emit multiple leading header blocks — a proxy `HTTP/1.1 200
+ * Connection established` (HTTPS CONNECT) and/or `100 Continue` — before the
+ * real response. We consume every block that starts with `HTTP/` and keep the
+ * last one, so the proxy/continue blocks are never mistaken for the response.
+ */
+export function splitCurlResponse(raw: Buffer): { headerText: string; body: Buffer } {
+  let rest = raw;
+  let headerText = '';
+
+  while (rest.length >= 5 && rest.subarray(0, 5).toString('latin1') === 'HTTP/') {
+    let idx = rest.indexOf('\r\n\r\n');
+    let len = 4;
+    if (idx === -1) {
+      idx = rest.indexOf('\n\n');
+      len = 2;
+    }
+    if (idx === -1) {
+      // Header block with no terminating blank line — take it all, no body.
+      headerText = rest.toString('utf8');
+      rest = Buffer.alloc(0);
+      break;
+    }
+    headerText = rest.subarray(0, idx).toString('utf8');
+    rest = rest.subarray(idx + len);
+  }
+
+  return { headerText, body: rest };
+}
+
 /** Issue a request via the system `curl` binary, returning an HttpResponse. */
 async function curlFetch(
   url: string,
@@ -108,15 +140,7 @@ async function curlFetch(
     throw new Error(`curl transport error (exit ${code})${detail ? `: ${detail}` : ''}`);
   }
 
-  const raw = Buffer.concat(out);
-  let sep = raw.indexOf('\r\n\r\n');
-  let sepLen = 4;
-  if (sep === -1) {
-    sep = raw.indexOf('\n\n');
-    sepLen = 2;
-  }
-  const headerText = (sep === -1 ? raw : raw.subarray(0, sep)).toString('utf8');
-  const bodyBuf = sep === -1 ? Buffer.alloc(0) : raw.subarray(sep + sepLen);
+  const { headerText, body: bodyBuf } = splitCurlResponse(Buffer.concat(out));
   const { status, headers } = parseHeaderBlock(headerText);
 
   return {
