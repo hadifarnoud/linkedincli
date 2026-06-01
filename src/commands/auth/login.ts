@@ -5,13 +5,26 @@ import { parseCurlRequest, looksLikeCurl } from '../../core/curl.js';
 import { output, outputError } from '../../core/output.js';
 import type { GlobalOptions } from '../../core/types.js';
 
+/** Read an entire readable stream (e.g. piped stdin) to a string. */
+async function readStream(stream: NodeJS.ReadableStream): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
+  }
+  return Buffer.concat(chunks).toString('utf-8');
+}
+
 export function registerLoginCommand(program: Command): void {
   program
     .command('login')
     .description('Store your LinkedIn session cookies for CLI use')
     .option(
+      '--curl-file <path>',
+      'Read a "Copy as cURL" (or cookie string) from a file — the robust way to pass the multi-line cURL',
+    )
+    .option(
       '--cookie <string>',
-      'Full cookie string from your browser (recommended — DevTools → Network → any linkedin.com request → copy the "cookie:" request header)',
+      'Full cookie string from your browser (DevTools → Network → any linkedin.com request → copy the "cookie:" request header)',
     )
     .option('--li-at <cookie>', 'li_at cookie value (legacy; LinkedIn may reject a bare token)')
     .option('--jsessionid <cookie>', 'JSESSIONID cookie value (legacy)')
@@ -27,16 +40,28 @@ export function registerLoginCommand(program: Command): void {
         const skipValidation = localOpts.skipValidation as boolean | undefined;
         let headers: Record<string, string> | undefined;
 
-        // Interactive mode if nothing provided as flags. Prefer "Copy as cURL"
-        // so we capture the full cookie jar AND the browser headers — a bare
-        // li_at, or even the cookies without matching headers, gets the session
-        // revoked by LinkedIn.
+        // A multi-line "Copy as cURL" can't be pasted into an interactive
+        // prompt (the shell/terminal mangles the quotes and newlines). Accept it
+        // from a file (--curl-file) or piped stdin (`pbpaste | linkedin login`)
+        // instead.
+        if (!cookie && (localOpts.curlFile as string | undefined)) {
+          const { readFile } = await import('node:fs/promises');
+          cookie = (await readFile(localOpts.curlFile as string, 'utf-8')).trim();
+        }
+        if (!cookie && !liAt && !jsessionid && !process.stdin.isTTY) {
+          const piped = await readStream(process.stdin);
+          if (piped.trim()) cookie = piped.trim();
+        }
+
+        // Interactive mode if still nothing. Note: the cURL path needs a file or
+        // pipe, so the prompt only collects a single-line cookie string (or
+        // li_at/JSESSIONID), and points the user at the cURL options.
         if (!cookie && !liAt && !jsessionid) {
           const { input: promptInput } = await import('@inquirer/prompts');
 
           cookie = await promptInput({
             message:
-              'Paste a "Copy as cURL" of any linkedin.com request (DevTools → Network → right-click → Copy → Copy as cURL). This captures your cookies AND browser headers. Leave blank to enter li_at/JSESSIONID individually:',
+              'Paste your cookie string (single line). For the full browser headers, instead Ctrl-C and run:  pbpaste | linkedin login  (after Copy as cURL), or:  linkedin login --curl-file <file>. Leave blank to enter li_at/JSESSIONID individually:',
           });
 
           if (!cookie?.trim()) {
