@@ -54,6 +54,17 @@ export function output(data: unknown, options: GlobalOptions = {}): void {
 
 export function outputError(error: unknown, options: GlobalOptions = {}): void {
   const formatted = formatError(error);
+
+  // Opt-in full diagnostics: stack + underlying cause chain. Always to stderr.
+  if (process.env.LINKEDIN_DEBUG && error instanceof Error) {
+    console.error(error.stack ?? error.message);
+    let cause = (error as { cause?: unknown }).cause;
+    while (cause) {
+      console.error('Caused by:', cause instanceof Error ? (cause.stack ?? cause.message) : cause);
+      cause = cause instanceof Error ? (cause as { cause?: unknown }).cause : undefined;
+    }
+  }
+
   if (options.quiet) {
     process.exitCode = 1;
     return;

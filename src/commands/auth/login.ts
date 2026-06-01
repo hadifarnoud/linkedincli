@@ -1,38 +1,99 @@
 import { Command } from 'commander';
 import { saveConfig } from '../../core/config.js';
-import { createClient } from '../../core/client.js';
+import { createClient, extractCookieValue } from '../../core/client.js';
+import { parseCurlRequest, looksLikeCurl } from '../../core/curl.js';
+import { extractMeProfile } from '../../core/me.js';
 import { output, outputError } from '../../core/output.js';
 import type { GlobalOptions } from '../../core/types.js';
+
+/** Read an entire readable stream (e.g. piped stdin) to a string. */
+async function readStream(stream: NodeJS.ReadableStream): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
+  }
+  return Buffer.concat(chunks).toString('utf-8');
+}
 
 export function registerLoginCommand(program: Command): void {
   program
     .command('login')
-    .description('Store your LinkedIn session cookies (li_at + JSESSIONID) for CLI use')
-    .option('--li-at <cookie>', 'li_at cookie value (from browser DevTools)')
-    .option('--jsessionid <cookie>', 'JSESSIONID cookie value (from browser DevTools)')
+    .description('Store your LinkedIn session cookies for CLI use')
+    .option(
+      '--curl-file <path>',
+      'Read a "Copy as cURL" (or cookie string) from a file — the robust way to pass the multi-line cURL',
+    )
+    .option(
+      '--cookie <string>',
+      'Full cookie string from your browser (DevTools → Network → any linkedin.com request → copy the "cookie:" request header)',
+    )
+    .option('--li-at <cookie>', 'li_at cookie value (legacy; LinkedIn may reject a bare token)')
+    .option('--jsessionid <cookie>', 'JSESSIONID cookie value (legacy)')
     .option('--skip-validation', 'Save cookies without verifying them against LinkedIn')
     .action(async function (this: Command) {
       const localOpts = this.opts() as Record<string, string | boolean | undefined>;
       const globalOpts = this.optsWithGlobals() as GlobalOptions & Record<string, string | boolean | undefined>;
 
       try {
+        let cookie = (localOpts.cookie ?? globalOpts.cookie) as string | undefined;
         let liAt = (localOpts.liAt ?? globalOpts.liAt) as string | undefined;
         let jsessionid = (localOpts.jsessionid ?? globalOpts.jsessionid) as string | undefined;
         const skipValidation = localOpts.skipValidation as boolean | undefined;
+        let headers: Record<string, string> | undefined;
 
-        // Interactive mode if cookies not provided as flags
-        if (!liAt || !jsessionid) {
+        // A multi-line "Copy as cURL" can't be pasted into an interactive
+        // prompt (the shell/terminal mangles the quotes and newlines). Accept it
+        // from a file (--curl-file) or piped stdin (`pbpaste | linkedin login`)
+        // instead.
+        if (!cookie && (localOpts.curlFile as string | undefined)) {
+          const { readFile } = await import('node:fs/promises');
+          cookie = (await readFile(localOpts.curlFile as string, 'utf-8')).trim();
+        }
+        if (!cookie && !liAt && !jsessionid && !process.stdin.isTTY) {
+          const piped = await readStream(process.stdin);
+          if (piped.trim()) cookie = piped.trim();
+        }
+
+        // Interactive mode if still nothing. Note: the cURL path needs a file or
+        // pipe, so the prompt only collects a single-line cookie string (or
+        // li_at/JSESSIONID), and points the user at the cURL options.
+        if (!cookie && !liAt && !jsessionid) {
           const { input: promptInput } = await import('@inquirer/prompts');
 
-          if (!liAt) {
+          cookie = await promptInput({
+            message:
+              'Paste your cookie string (single line). For the full browser headers, instead Ctrl-C and run:  pbpaste | linkedin login  (after Copy as cURL), or:  linkedin login --curl-file <file>. Leave blank to enter li_at/JSESSIONID individually:',
+          });
+
+          if (!cookie?.trim()) {
+            cookie = undefined;
             liAt = await promptInput({
-              message: 'Paste your li_at cookie value (from browser DevTools → Application → Cookies → linkedin.com):',
+              message: 'Paste your li_at cookie value (from DevTools → Application → Cookies → linkedin.com):',
             });
-          }
-          if (!jsessionid) {
             jsessionid = await promptInput({
               message: 'Paste your JSESSIONID cookie value (include the quotes if present):',
             });
+          }
+        }
+
+        // If a cURL command or full cookie string was supplied, extract the
+        // headers + cookie jar, then derive li_at + JSESSIONID from the jar.
+        if (cookie?.trim()) {
+          cookie = cookie.trim();
+
+          if (looksLikeCurl(cookie)) {
+            const parsed = parseCurlRequest(cookie);
+            if (Object.keys(parsed.headers).length > 0) headers = parsed.headers;
+            if (parsed.cookie) cookie = parsed.cookie.trim();
+          }
+
+          liAt = extractCookieValue(cookie, 'li_at') ?? liAt;
+          jsessionid = extractCookieValue(cookie, 'JSESSIONID') ?? jsessionid;
+
+          if (!liAt || !jsessionid) {
+            throw new Error(
+              'Could not find li_at and JSESSIONID in the pasted value. Paste the full cookie string or a "Copy as cURL".',
+            );
           }
         }
 
@@ -47,20 +108,25 @@ export function registerLoginCommand(program: Command): void {
         await saveConfig({
           li_at: liAt,
           jsessionid,
+          ...(cookie ? { cookie } : {}),
+          ...(headers ? { headers } : {}),
         });
 
         // Optionally validate by fetching /me
         if (!skipValidation) {
           try {
-            const client = createClient({ liAt, jsessionid });
+            const client = createClient({ liAt, jsessionid, cookie, headers });
             const me = await client.get<any>('/me');
-            const profileName = [me?.firstName, me?.lastName].filter(Boolean).join(' ') || 'Unknown';
-            const profileUrn = me?.entityUrn ?? me?.publicIdentifier ?? '';
+            const parsed = extractMeProfile(me);
+            const profileName = parsed.name || 'Unknown';
+            const profileUrn = parsed.entityUrn ?? '';
 
             // Update config with profile info
             await saveConfig({
               li_at: liAt,
               jsessionid,
+              ...(cookie ? { cookie } : {}),
+              ...(headers ? { headers } : {}),
               profile_name: profileName,
               profile_urn: profileUrn,
             });
@@ -140,14 +206,19 @@ export function registerStatusCommand(program: Command): void {
         }
 
         // --verify: make a live API call
-        const client = createClient({ liAt: config.li_at, jsessionid: config.jsessionid });
+        const client = createClient({
+          liAt: config.li_at,
+          jsessionid: config.jsessionid,
+          cookie: config.cookie,
+          headers: config.headers,
+        });
         try {
           const me = await client.get<any>('/me');
-          const name = [me?.firstName, me?.lastName].filter(Boolean).join(' ');
+          const parsed = extractMeProfile(me);
           output({
             logged_in: true,
-            profile: name || config.profile_name || 'Unknown',
-            urn: me?.entityUrn || config.profile_urn,
+            profile: parsed.name || config.profile_name || 'Unknown',
+            urn: parsed.entityUrn || config.profile_urn,
             session_valid: true,
           }, globalOpts);
         } catch (err: any) {

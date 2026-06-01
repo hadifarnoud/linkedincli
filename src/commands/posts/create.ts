@@ -3,6 +3,7 @@ import { readFile, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import type { CommandDefinition, LinkedInClient } from '../../core/types.js';
 import { generateTrackingId } from '../../core/client.js';
+import { extractMeProfile } from '../../core/me.js';
 import { summarizePostsList, summarizeCommentsList } from '../../core/summarize.js';
 
 export const postsCreateCommand: CommandDefinition = {
@@ -110,8 +111,7 @@ export const postsEditCommand: CommandDefinition = {
 
 async function resolveMyUrnId(client: LinkedInClient): Promise<string> {
   const me = await client.get<any>('/me');
-  const entityUrn: string = me?.entityUrn ?? me?.miniProfile?.entityUrn ?? '';
-  const urnId = entityUrn.split(':').pop();
+  const { urnId } = extractMeProfile(me);
   if (!urnId) {
     throw new Error('Could not resolve your profile URN from /me');
   }

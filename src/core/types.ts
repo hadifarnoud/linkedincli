@@ -64,6 +64,20 @@ export interface GlobalOptions {
 export interface LinkedInAuth {
   liAt: string;
   jsessionid: string;
+  /**
+   * Full browser cookie string (li_at + JSESSIONID + companions like bcookie,
+   * bscookie, lidc, li_gc, ...). When set, it is sent verbatim. LinkedIn treats
+   * a bare li_at as a replayed token and revokes the session, so sending the
+   * complete jar is what makes the request look like a real browser.
+   */
+  cookie?: string;
+  /**
+   * Extra request headers captured from the browser (e.g. via `Copy as cURL`):
+   * user-agent, x-li-track (clientVersion), sec-ch-ua, x-li-page-instance, etc.
+   * Replayed verbatim so the request fingerprint matches the browser and
+   * LinkedIn doesn't flag/revoke the session.
+   */
+  headers?: Record<string, string>;
 }
 
 export interface LinkedInClient {

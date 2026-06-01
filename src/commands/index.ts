@@ -101,6 +101,7 @@ function registerCommand(parent: Command, cmdDef: CommandDefinition): void {
 
       // Resolve auth and create client
       const auth = await resolveAuth({
+        cookie: globalOpts.cookie,
         liAt: globalOpts.liAt,
         jsessionid: globalOpts.jsessionid,
       });
